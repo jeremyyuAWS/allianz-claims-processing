@@ -91,6 +91,29 @@ const EnhancedUploadDocuments: React.FC = () => {
     }
   }, [claimData, activeTab, documents, addMessageToChat, requiredDocuments]);
 
+  // Check for demo mode and auto-advance if enabled
+  useEffect(() => {
+    if (demoMode && activeTab === 'upload') {
+      // Add demo documents for all required document types
+      setTimeout(() => {
+        // If no documents have been added yet, add them
+        if (documents.length === 0) {
+          // Add one document for each required document type
+          requiredDocuments.forEach((docType, index) => {
+            setTimeout(() => {
+              addDemoDocument(index, docType as DocumentType);
+            }, index * 1000); // Add documents with a staggered delay
+          });
+          
+          // After all documents are added, proceed to the next step
+          setTimeout(() => {
+            handleContinue();
+          }, requiredDocuments.length * 1000 + 1500);
+        }
+      }, 1000);
+    }
+  }, [demoMode, activeTab, requiredDocuments]);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     
@@ -358,8 +381,7 @@ const EnhancedUploadDocuments: React.FC = () => {
     ]
   };
   
-  const addDemoDocument = (fileIndex: number = 0) => {
-    const docType = selectedDocType;
+  const addDemoDocument = (fileIndex: number = 0, docType: DocumentType = selectedDocType) => {
     const availableDocs = demoDocuments[docType as keyof typeof demoDocuments] || demoDocuments['Other'];
     const demoDoc = availableDocs[fileIndex % availableDocs.length];
     

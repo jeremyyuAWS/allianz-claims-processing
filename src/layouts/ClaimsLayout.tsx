@@ -76,7 +76,7 @@ const ClaimsLayout: React.FC = () => {
       {/* Enhanced UI Toggle Button */}
       <div className="px-4 py-2 bg-white border-b border-gray-100 flex justify-end">
         <div className="flex items-center">
-          <span className="text-sm text-gray-600 mr-2">Use Enhanced UI</span>
+          <span className="text-sm text-gray-600 mr-2">Demo mode</span>
           <button 
             onClick={() => setUseEnhancedUI(!useEnhancedUI)}
             className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useEnhancedUI ? 'bg-blue-600' : 'bg-gray-200'}`}

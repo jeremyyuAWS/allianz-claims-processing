@@ -45,6 +45,11 @@ const StartClaim: React.FC = () => {
         content: "Demo mode activated. Form has been pre-filled with sample data. You can now continue through the claims process to see how tracking works.",
         agentType: 'claims-assistant'
       });
+
+      // Automatically handle submission after a short delay
+      setTimeout(() => {
+        handleSubmit();
+      }, 1000);
     }
   }, [demoMode, addMessageToChat]);
 
@@ -103,16 +108,8 @@ const StartClaim: React.FC = () => {
           agentType: 'claims-assistant'
         });
         
-        // Navigate to document upload tab or track tab if in demo mode
-        if (demoMode) {
-          // In demo mode, we'll skip directly to the claim status tracking
-          setTimeout(() => {
-            setActiveTab('track');
-          }, 1000);
-        } else {
-          // Navigate to document upload tab
-          setActiveTab('upload');
-        }
+        // Navigate to document upload tab
+        setActiveTab('upload');
       }, 1500);
     }
   };
