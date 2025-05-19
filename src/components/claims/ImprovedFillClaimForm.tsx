@@ -18,7 +18,7 @@ import {
   Phone
 } from 'lucide-react';
 import dayjs from 'dayjs';
-import { validateField, isValidEmail, isValidPhone, formatPhoneNumber } from '../../utils/validators';
+import { isValidEmail, isValidPhone, formatPhoneNumber } from '../../utils/validators';
 import ValidationIndicator from '../common/ValidationIndicator';
 import Toast from '../common/Toast';
 import EmailTemplate from '../common/EmailTemplate';
