@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Info, ArrowRight, FileText, HelpCircle } from 'lucide-react';
+import { Info, ArrowRight, FileText, HelpCircle, ToggleLeft, ToggleRight } from 'lucide-react';
 import claimTypesData from '../../data/claim_types.json';
 
 const StartClaim: React.FC = () => {
@@ -10,6 +10,7 @@ const StartClaim: React.FC = () => {
   const [showGuide, setShowGuide] = useState(true);
   const [showRequiredDocs, setShowRequiredDocs] = useState<boolean>(false);
   const [claimTypeDetail, setClaimTypeDetail] = useState<any>(null);
+  const [demoMode, setDemoMode] = useState(false);
   
   useEffect(() => {
     // Welcome message for this tab
@@ -21,6 +22,31 @@ const StartClaim: React.FC = () => {
       });
     }, 500);
   }, [addMessageToChat]);
+
+  useEffect(() => {
+    // Auto-fill form when demo mode is enabled
+    if (demoMode) {
+      // Select a default claim type (life insurance)
+      const defaultClaimType = 'life';
+      setSelectedClaimType(defaultClaimType);
+      
+      // Find the claim type details
+      const claimType = claimTypesData.find(type => type.id === defaultClaimType);
+      if (claimType) {
+        setClaimTypeDetail(claimType);
+      }
+      
+      // Set a default claim reason
+      setClaimReason('Filing a death benefit claim for policy holder who passed away on March 15, 2023 due to natural causes.');
+      
+      // Add message to chat about demo mode
+      addMessageToChat({
+        sender: 'agent',
+        content: "Demo mode activated. Form has been pre-filled with sample data. You can now continue through the claims process to see how tracking works.",
+        agentType: 'claims-assistant'
+      });
+    }
+  }, [demoMode, addMessageToChat]);
 
   const handleClaimTypeSelection = (claimTypeId: string) => {
     setSelectedClaimType(claimTypeId);
@@ -50,7 +76,7 @@ const StartClaim: React.FC = () => {
   };
 
   const handleSubmit = () => {
-    if (!selectedClaimType || !claimReason.trim()) return;
+    if ((!selectedClaimType || !claimReason.trim()) && !demoMode) return;
     
     const claimType = claimTypesData.find(type => type.id === selectedClaimType);
     
@@ -77,22 +103,51 @@ const StartClaim: React.FC = () => {
           agentType: 'claims-assistant'
         });
         
-        // Navigate to document upload tab
-        setActiveTab('upload');
+        // Navigate to document upload tab or track tab if in demo mode
+        if (demoMode) {
+          // In demo mode, we'll skip directly to the claim status tracking
+          setTimeout(() => {
+            setActiveTab('track');
+          }, 1000);
+        } else {
+          // Navigate to document upload tab
+          setActiveTab('upload');
+        }
       }, 1500);
     }
   };
 
-  const isDisabled = !selectedClaimType || !claimReason.trim();
+  // Toggle demo mode
+  const toggleDemoMode = () => {
+    setDemoMode(!demoMode);
+  };
+
+  const isDisabled = (!selectedClaimType || !claimReason.trim()) && !demoMode;
 
   return (
     <div className="h-full overflow-y-auto p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Start Your Claim</h1>
-          <p className="text-gray-600">
-            Select the type of policy you're filing a claim for, and we'll guide you through the process.
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Start Your Claim</h1>
+              <p className="text-gray-600">
+                Select the type of policy you're filing a claim for, and we'll guide you through the process.
+              </p>
+            </div>
+            <div className="flex items-center">
+              <span className="text-sm text-gray-600 mr-2">Use Enhanced UI</span>
+              <button 
+                onClick={toggleDemoMode}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${demoMode ? 'bg-blue-600' : 'bg-gray-200'}`}
+                aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
+              >
+                <span 
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${demoMode ? 'translate-x-6' : 'translate-x-1'}`} 
+                />
+              </button>
+            </div>
+          </div>
         </div>
         
         {showGuide && (
@@ -109,6 +164,29 @@ const StartClaim: React.FC = () => {
               >
                 Dismiss
               </button>
+            </div>
+          </div>
+        )}
+        
+        {demoMode && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 animate-fade-in">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                <ToggleRight className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-md font-medium text-green-800 mb-1">Demo Mode Activated</h3>
+                <p className="text-sm text-green-700 mb-3">
+                  Form has been pre-filled with sample data. You can review the information or proceed directly to see the claim tracking experience.
+                </p>
+                <button
+                  onClick={handleSubmit}
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none transition-colors"
+                >
+                  Skip to Claim Status Tracking
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -237,10 +315,10 @@ const StartClaim: React.FC = () => {
               className={`flex items-center px-4 py-2 rounded-md shadow-sm text-white ${
                 isDisabled
                   ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-blue-600 hover:bg-blue-700 transition-colors'
               }`}
             >
-              <span>Continue to Document Upload</span>
+              <span>{demoMode ? 'Skip to Claim Status' : 'Continue to Document Upload'}</span>
               <ArrowRight className="ml-2 h-4 w-4" />
             </button>
           </div>
