@@ -14,7 +14,8 @@ import {
   CheckCircle2, 
   CreditCard, 
   DollarSign,
-  Save
+  Save,
+  Phone
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { validateField, isValidEmail, isValidPhone, formatPhoneNumber } from '../../utils/validators';
