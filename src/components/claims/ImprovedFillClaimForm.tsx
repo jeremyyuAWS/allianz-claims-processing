@@ -15,7 +15,12 @@ import {
   CreditCard, 
   DollarSign,
   Save,
-  Phone
+  Phone,
+  ToggleLeft, 
+  ToggleRight,
+  Wand2,
+  CalendarDays,
+  User
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { isValidEmail, isValidPhone, formatPhoneNumber } from '../../utils/validators';
@@ -55,6 +60,7 @@ const ImprovedFillClaimForm: React.FC = () => {
   const [currentField, setCurrentField] = useState<string | null>(null);
   const [fieldFocusCount, setFieldFocusCount] = useState<Record<string, number>>({});
   const [validationAnimations, setValidationAnimations] = useState<Record<string, boolean>>({});
+  const [demoMode, setDemoMode] = useState(false);
   
   // Refs for field animation
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -102,6 +108,9 @@ const ImprovedFillClaimForm: React.FC = () => {
   
   // Validate a single field
   const validateSingleField = (name: string, value: string): string => {
+    // Skip validation in demo mode
+    if (demoMode) return '';
+    
     const fieldLabels: Record<string, string> = {
       policyNumber: 'Policy number',
       claimantName: 'Claimant name',
@@ -143,6 +152,9 @@ const ImprovedFillClaimForm: React.FC = () => {
   };
   
   const validateForm = () => {
+    // Skip validation in demo mode
+    if (demoMode) return true;
+    
     const errors: Record<string, string> = {};
     
     // Validate required fields
@@ -169,6 +181,51 @@ const ImprovedFillClaimForm: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
+  const populateDemoData = () => {
+    // Generate a random date in the last 30 days
+    const randomDate = new Date();
+    randomDate.setDate(randomDate.getDate() - Math.floor(Math.random() * 30));
+    
+    // Sample data
+    const demoFormData = {
+      policyNumber: claimData?.policyNumber || 'ALZ-1234567',
+      claimantName: claimData?.policyHolder || 'John Smith',
+      dateOfIncident: dayjs(randomDate).format('YYYY-MM-DD'),
+      beneficiaryName: 'Sarah Johnson',
+      beneficiaryRelation: 'spouse',
+      beneficiaryPhone: '(555) 123-4567',
+      beneficiaryEmail: 'sarah.johnson@example.com',
+      beneficiaryAddress: '123 Main Street, Anytown, CA 90210',
+      paymentMethod: 'directDeposit',
+      accountType: 'checking',
+      accountNumber: '123456789',
+      routingNumber: '987654321',
+      additionalInfo: 'This is a demo claim submission. The policyholder passed away due to natural causes.'
+    };
+    
+    // Set form data
+    setFormData(demoFormData);
+    
+    // Mark all fields as touched
+    const allTouched: Record<string, boolean> = {};
+    Object.keys(demoFormData).forEach(key => {
+      allTouched[key] = true;
+    });
+    setFormTouched(allTouched);
+    
+    // Add message to chat
+    addMessageToChat({
+      sender: 'agent',
+      content: "I've populated the form with sample data for demonstration purposes. You can review this information and submit the claim to proceed to the claim status tracking.",
+      agentType: 'form-assistant'
+    });
+    
+    // Show toast
+    setToastMessage('Form populated with sample data');
+    setToastType('info');
+    setShowToast(true);
+  };
+  
   const handleSubmit = () => {
     // Mark all fields as touched
     const allTouched: Record<string, boolean> = {};
@@ -177,7 +234,7 @@ const ImprovedFillClaimForm: React.FC = () => {
     });
     setFormTouched(allTouched);
     
-    if (validateForm()) {
+    if (validateForm() || demoMode) {
       // Show loading state
       setIsSaving(true);
       
@@ -281,8 +338,8 @@ const ImprovedFillClaimForm: React.FC = () => {
       [name]: true
     });
     
-    // Validate the field if it's been touched
-    if (formTouched[name]) {
+    // Validate the field if it's been touched and not in demo mode
+    if (formTouched[name] && !demoMode) {
       const error = validateSingleField(name, name === 'beneficiaryPhone' ? formatPhoneNumber(value) : value);
       
       setFormErrors({
@@ -324,6 +381,9 @@ const ImprovedFillClaimForm: React.FC = () => {
     // Update the current field being interacted with
     setCurrentField(null);
     
+    // Skip validation in demo mode
+    if (demoMode) return;
+    
     // Validate on blur
     const error = validateSingleField(name, value);
     
@@ -357,6 +417,9 @@ const ImprovedFillClaimForm: React.FC = () => {
     // Update the current field being interacted with
     setCurrentField(name);
     
+    // Skip further processing in demo mode
+    if (demoMode) return;
+    
     // Track focus counts for this field to provide contextual help only on first interaction
     setFieldFocusCount(prev => ({
       ...prev,
@@ -386,8 +449,8 @@ const ImprovedFillClaimForm: React.FC = () => {
   
   // Auto-save form when fields change
   useEffect(() => {
-    // Skip initial render
-    if (Object.keys(formTouched).length === 0) return;
+    // Skip initial render or if in demo mode
+    if (Object.keys(formTouched).length === 0 || demoMode) return;
     
     // Only save if at least one field has been touched
     if (Object.values(formTouched).some(Boolean)) {
@@ -410,7 +473,7 @@ const ImprovedFillClaimForm: React.FC = () => {
       
       return () => clearTimeout(saveTimer);
     }
-  }, [formData, formTouched]);
+  }, [formData, formTouched, demoMode]);
   
   const generatePdf = () => {
     // In a real app, this would generate a PDF of the form
@@ -425,6 +488,28 @@ const ImprovedFillClaimForm: React.FC = () => {
     setToastMessage('PDF copy of your form has been generated');
     setToastType('success');
     setShowToast(true);
+  };
+  
+  const toggleDemoMode = () => {
+    const newDemoMode = !demoMode;
+    setDemoMode(newDemoMode);
+    
+    if (newDemoMode) {
+      // Notify user about demo mode
+      addMessageToChat({
+        sender: 'agent',
+        content: "Demo mode activated. You can now populate the form with sample data and proceed to claim tracking without having to fill out all fields.",
+        agentType: 'form-assistant'
+      });
+      
+      setToastMessage('Demo mode activated');
+      setToastType('info');
+      setShowToast(true);
+    } else {
+      setToastMessage('Demo mode deactivated');
+      setToastType('info');
+      setShowToast(true);
+    }
   };
   
   // Check if component should display based on active tab
@@ -451,7 +536,7 @@ const ImprovedFillClaimForm: React.FC = () => {
     );
   }
   
-  if (uploadedDocuments.length === 0) {
+  if (uploadedDocuments.length === 0 && !demoMode) {
     return (
       <div className="flex h-full justify-center items-center p-8">
         <div className="bg-yellow-50 p-4 rounded-lg max-w-md text-center">
@@ -460,12 +545,25 @@ const ImprovedFillClaimForm: React.FC = () => {
           <p className="text-yellow-700 mb-4">
             Please upload the required documents before filling out the claim form.
           </p>
-          <button
-            onClick={() => setActiveTab('upload')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-          >
-            Upload Documents
-          </button>
+          <div className="space-y-4">
+            <button
+              onClick={() => setActiveTab('upload')}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+            >
+              Upload Documents
+            </button>
+            
+            <div className="flex flex-col items-center">
+              <p className="text-sm text-yellow-700 mb-2">Or enable demo mode to continue without uploading documents</p>
+              <button
+                onClick={toggleDemoMode}
+                className="inline-flex items-center px-4 py-2 border border-yellow-300 text-sm font-medium rounded-md shadow-sm text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none"
+              >
+                <Wand2 className="h-4 w-4 mr-1.5" />
+                Enable Demo Mode
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -474,12 +572,52 @@ const ImprovedFillClaimForm: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Claim Form</h1>
-          <p className="text-gray-600">
-            Please complete the form below for your {claimData.claimType.toLowerCase()}.
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Claim Form</h1>
+            <p className="text-gray-600">
+              Please complete the form below for your {claimData.claimType.toLowerCase()}.
+            </p>
+          </div>
+          
+          {/* Demo Mode Toggle */}
+          <div className="flex items-center">
+            <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
+            <button 
+              onClick={toggleDemoMode}
+              className="focus:outline-none"
+              aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
+            >
+              {demoMode ? (
+                <ToggleRight className="h-6 w-6 text-blue-600" />
+              ) : (
+                <ToggleLeft className="h-6 w-6 text-gray-400" />
+              )}
+            </button>
+          </div>
         </div>
+        
+        {/* Demo Mode Controls */}
+        {demoMode && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 animate-fade-in">
+            <div className="flex items-start">
+              <Wand2 className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800 mb-1">Demo Mode Activated</h3>
+                <p className="text-sm text-blue-600 mb-2">
+                  Use demo mode to quickly populate the form with sample data and proceed to claim tracking without validation.
+                </p>
+                <button
+                  onClick={populateDemoData}
+                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none transition-colors"
+                >
+                  <Wand2 className="mr-1.5 h-4 w-4" />
+                  Auto-Fill with Sample Data
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {formSubmitted ? (
           <div className="bg-green-50 rounded-lg p-8 text-center animate-fade-in">
@@ -518,18 +656,19 @@ const ImprovedFillClaimForm: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <span className="text-sm font-medium text-blue-700">{formProgress}%</span>
+                <span className="text-sm font-medium text-blue-700">{demoMode ? '100' : formProgress}%</span>
               </div>
               <div className="relative w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
                 <div className="absolute left-0 h-full bg-gray-200 rounded-full"></div>
                 <div 
                   className="relative bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out"
-                  style={{ width: `${formProgress}%` }}
+                  style={{ width: `${demoMode ? 100 : formProgress}%` }}
                 ></div>
               </div>
               <div className="flex justify-between mt-1">
                 <p className="text-xs text-gray-500">
-                  {formProgress < 100 ? `${100 - formProgress}% remaining` : 'Complete'}
+                  {demoMode ? 'Demo mode enabled - all fields validated' : 
+                   formProgress < 100 ? `${100 - formProgress}% remaining` : 'Complete'}
                 </p>
                 <p className="text-xs text-blue-600 font-medium">
                   {Object.keys(formData).filter(key => Boolean(formData[key as keyof typeof formData])).length} of {Object.keys(formData).length} fields filled
@@ -561,12 +700,12 @@ const ImprovedFillClaimForm: React.FC = () => {
                           onBlur={handleBlur}
                           onFocus={handleFocus}
                           className={`w-full px-3 py-2 border rounded-md transition-colors ${
-                            formTouched.policyNumber && formErrors.policyNumber 
+                            formTouched.policyNumber && formErrors.policyNumber && !demoMode
                               ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                               : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                           } ${currentField === 'policyNumber' ? 'bg-blue-50' : ''}`}
                         />
-                        {formTouched.policyNumber && (
+                        {formTouched.policyNumber && formErrors.policyNumber && !demoMode && (
                           <ValidationIndicator 
                             isValid={!formErrors.policyNumber} 
                             message={formErrors.policyNumber} 
@@ -583,20 +722,25 @@ const ImprovedFillClaimForm: React.FC = () => {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Claimant Name
                         </label>
-                        <input
-                          type="text"
-                          name="claimantName"
-                          value={formData.claimantName}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
-                          onFocus={handleFocus}
-                          className={`w-full px-3 py-2 border rounded-md transition-colors ${
-                            formTouched.claimantName && formErrors.claimantName 
-                              ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
-                              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                          } ${currentField === 'claimantName' ? 'bg-blue-50' : ''}`}
-                        />
-                        {formTouched.claimantName && (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            name="claimantName"
+                            value={formData.claimantName}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            onFocus={handleFocus}
+                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
+                              formTouched.claimantName && formErrors.claimantName && !demoMode
+                                ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                            } ${currentField === 'claimantName' ? 'bg-blue-50' : ''}`}
+                          />
+                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
+                            <User className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+                        {formTouched.claimantName && formErrors.claimantName && !demoMode && (
                           <ValidationIndicator 
                             isValid={!formErrors.claimantName} 
                             message={formErrors.claimantName} 
@@ -623,19 +767,17 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onBlur={handleBlur}
                             onFocus={handleFocus}
                             max={dayjs().format('YYYY-MM-DD')}
-                            className={`w-full px-3 py-2 border rounded-md transition-colors ${
-                              formTouched.dateOfIncident && formErrors.dateOfIncident 
+                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
+                              formTouched.dateOfIncident && formErrors.dateOfIncident && !demoMode
                                 ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                             } ${currentField === 'dateOfIncident' ? 'bg-blue-50' : ''}`}
                           />
-                          {currentField === 'dateOfIncident' && (
-                            <div className="absolute right-0 top-0 h-full flex items-center pr-3">
-                              <Clock className="h-4 w-4 text-blue-500" />
-                            </div>
-                          )}
+                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
+                            <CalendarDays className="h-4 w-4 text-gray-400" />
+                          </div>
                         </div>
-                        {formTouched.dateOfIncident && (
+                        {formTouched.dateOfIncident && formErrors.dateOfIncident && !demoMode && (
                           <ValidationIndicator 
                             isValid={!formErrors.dateOfIncident} 
                             message={formErrors.dateOfIncident} 
@@ -667,7 +809,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onBlur={handleBlur}
                             onFocus={handleFocus}
                             className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.beneficiaryName && formErrors.beneficiaryName 
+                              formTouched.beneficiaryName && formErrors.beneficiaryName && !demoMode
                                 ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                             } ${currentField === 'beneficiaryName' ? 'bg-blue-50' : ''}`}
@@ -677,7 +819,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                             <Edit3 className="h-4 w-4 text-gray-400" />
                           </div>
                         </div>
-                        {formTouched.beneficiaryName && (
+                        {formTouched.beneficiaryName && formErrors.beneficiaryName && !demoMode && (
                           <ValidationIndicator 
                             isValid={!formErrors.beneficiaryName} 
                             message={formErrors.beneficiaryName} 
@@ -727,7 +869,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onFocus={handleFocus}
                             placeholder="(123) 456-7890"
                             className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.beneficiaryPhone && formErrors.beneficiaryPhone 
+                              formTouched.beneficiaryPhone && formErrors.beneficiaryPhone && !demoMode
                                 ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                             } ${currentField === 'beneficiaryPhone' ? 'bg-blue-50' : ''}`}
@@ -739,7 +881,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                             <CheckCircle2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-500" />
                           )}
                         </div>
-                        {formTouched.beneficiaryPhone && (
+                        {formTouched.beneficiaryPhone && formErrors.beneficiaryPhone && !demoMode && (
                           <ValidationIndicator 
                             isValid={!formErrors.beneficiaryPhone} 
                             message={formErrors.beneficiaryPhone} 
@@ -766,7 +908,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onFocus={handleFocus}
                             placeholder="email@example.com"
                             className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.beneficiaryEmail && formErrors.beneficiaryEmail 
+                              formTouched.beneficiaryEmail && formErrors.beneficiaryEmail && !demoMode
                                 ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                             } ${currentField === 'beneficiaryEmail' ? 'bg-blue-50' : ''}`}
@@ -778,7 +920,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                             <CheckCircle2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-500" />
                           )}
                         </div>
-                        {formTouched.beneficiaryEmail && (
+                        {formTouched.beneficiaryEmail && formErrors.beneficiaryEmail && !demoMode && (
                           <ValidationIndicator 
                             isValid={!formErrors.beneficiaryEmail} 
                             message={formErrors.beneficiaryEmail} 
@@ -895,7 +1037,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                               onFocus={handleFocus}
                               placeholder="Enter account number"
                               className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                                formTouched.accountNumber && formErrors.accountNumber 
+                                formTouched.accountNumber && formErrors.accountNumber && !demoMode
                                   ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                                   : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                               } ${currentField === 'accountNumber' ? 'bg-blue-50' : ''}`}
@@ -904,7 +1046,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                               <DollarSign className="h-4 w-4 text-gray-400" />
                             </div>
                           </div>
-                          {formTouched.accountNumber && (
+                          {formTouched.accountNumber && formErrors.accountNumber && !demoMode && (
                             <ValidationIndicator 
                               isValid={!formErrors.accountNumber} 
                               message={formErrors.accountNumber} 
@@ -931,7 +1073,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                               onFocus={handleFocus}
                               placeholder="Enter 9-digit routing number"
                               className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                                formTouched.routingNumber && formErrors.routingNumber 
+                                formTouched.routingNumber && formErrors.routingNumber && !demoMode
                                   ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
                                   : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                               } ${currentField === 'routingNumber' ? 'bg-blue-50' : ''}`}
@@ -941,7 +1083,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                               <FileText className="h-4 w-4 text-gray-400" />
                             </div>
                           </div>
-                          {formTouched.routingNumber && (
+                          {formTouched.routingNumber && formErrors.routingNumber && !demoMode && (
                             <ValidationIndicator 
                               isValid={!formErrors.routingNumber} 
                               message={formErrors.routingNumber} 
@@ -1017,11 +1159,11 @@ const ImprovedFillClaimForm: React.FC = () => {
                   
                   <button
                     type="submit"
-                    disabled={isSaving || formProgress < 100}
+                    disabled={isSaving || (formProgress < 100 && !demoMode)}
                     className={`flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
                       isSaving
                         ? 'bg-blue-400 cursor-wait'
-                        : formProgress < 100
+                        : formProgress < 100 && !demoMode
                         ? 'bg-gray-400 cursor-not-allowed'
                         : 'bg-blue-600 hover:bg-blue-700'
                     }`}
@@ -1034,7 +1176,7 @@ const ImprovedFillClaimForm: React.FC = () => {
                     ) : (
                       <>
                         <FileText className="mr-2 h-4 w-4" />
-                        Submit Claim
+                        {demoMode ? "Submit Demo Claim" : "Submit Claim"}
                       </>
                     )}
                   </button>

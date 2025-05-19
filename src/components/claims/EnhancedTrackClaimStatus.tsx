@@ -18,7 +18,10 @@ import {
   Calendar,
   UserCheck,
   Shield,
-  X
+  X,
+  Wand2,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import EmailTemplate from '../common/EmailTemplate';
 import Toast from '../common/Toast';
@@ -35,6 +38,8 @@ const EnhancedTrackClaimStatus: React.FC = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
+  const [demoMode, setDemoMode] = useState(false);
+  const [autoProgressDemo, setAutoProgressDemo] = useState(false);
   
   // Ref for the timeline animation
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -55,7 +60,7 @@ const EnhancedTrackClaimStatus: React.FC = () => {
     
     // Simulate status changes for demo
     let timer: NodeJS.Timeout;
-    if (claimStatus === 'In Review' && statusHistory.length > 0) {
+    if (autoProgressDemo && claimStatus === 'In Review') {
       timer = setTimeout(() => {
         setClaimStatus('Additional Info Required');
         // Update status history
@@ -82,7 +87,7 @@ const EnhancedTrackClaimStatus: React.FC = () => {
         // Show email preview
         setEmailTemplateType('additional_info');
         setShowEmailPreview(true);
-      }, 30000); // Change status after 30 seconds for demo
+      }, 15000); // Change status after 15 seconds in auto demo mode
     }
     
     // Start animation after component mounts
@@ -100,11 +105,11 @@ const EnhancedTrackClaimStatus: React.FC = () => {
     }
     
     return () => clearTimeout(timer);
-  }, [claimStatus, setClaimStatus, addMessageToChat, statusHistory.length]);
+  }, [claimStatus, setClaimStatus, addMessageToChat, statusHistory.length, autoProgressDemo]);
   
   // Initialize status history when component first loads
   useEffect(() => {
-    if (claimStatus !== 'Not Started' && statusHistory.length === 0) {
+    if ((claimStatus !== 'Not Started' && statusHistory.length === 0) || demoMode) {
       const initialHistory = [
         { 
           status: 'Documents Pending', 
@@ -113,7 +118,7 @@ const EnhancedTrackClaimStatus: React.FC = () => {
         }
       ];
       
-      if (documents.length > 0) {
+      if (documents.length > 0 || demoMode) {
         initialHistory.push({ 
           status: 'Documents Verified', 
           timestamp: new Date(Date.now() - 3600000 * 2), // 2 hours ago
@@ -122,7 +127,7 @@ const EnhancedTrackClaimStatus: React.FC = () => {
       }
       
       if (claimStatus === 'In Review' || claimStatus === 'Additional Info Required' || 
-          claimStatus === 'Approved' || claimStatus === 'Paid' || claimStatus === 'Denied') {
+          claimStatus === 'Approved' || claimStatus === 'Paid' || claimStatus === 'Denied' || demoMode) {
         initialHistory.push({ 
           status: 'In Review', 
           timestamp: new Date(Date.now() - 3600000), // 1 hour ago
@@ -139,8 +144,20 @@ const EnhancedTrackClaimStatus: React.FC = () => {
       }
       
       setStatusHistory(initialHistory);
+      
+      // If in demo mode and no status is set, set it to In Review
+      if (demoMode && claimStatus === 'Not Started') {
+        setClaimStatus('In Review');
+        
+        // Add initialization message to chat
+        addMessageToChat({
+          sender: 'agent',
+          content: "Your claim is now in review. You can track its progress here in the 'Track Claim Status' tab. I'll notify you of any updates or if additional information is needed.",
+          agentType: 'status-assistant'
+        });
+      }
     }
-  }, [claimStatus, statusHistory.length, documents.length]);
+  }, [claimStatus, statusHistory.length, documents.length, demoMode, setClaimStatus, addMessageToChat]);
   
   // Helper function to get status step number
   const getStatusStep = (status: string) => {
@@ -224,6 +241,57 @@ const EnhancedTrackClaimStatus: React.FC = () => {
     // Show email preview for status updates
     setEmailTemplateType(getEmailType(newStatus));
     setTimeout(() => setShowEmailPreview(true), 500);
+  };
+  
+  const toggleDemoMode = () => {
+    const newDemoMode = !demoMode;
+    setDemoMode(newDemoMode);
+    
+    if (newDemoMode) {
+      // If turning on demo mode
+      if (claimStatus === 'Not Started') {
+        // Initialize with demo data if not already started
+        setClaimStatus('In Review');
+        // Add demo notification
+        addMessageToChat({
+          sender: 'agent',
+          content: "Demo mode activated. You can now track a simulated claim through various status changes. Use the simulation controls to advance the claim through different stages of processing.",
+          agentType: 'status-assistant'
+        });
+      } else {
+        // Add demo notification
+        addMessageToChat({
+          sender: 'agent',
+          content: "Demo mode activated. You can now simulate different claim statuses using the controls at the bottom of the page.",
+          agentType: 'status-assistant'
+        });
+      }
+      
+      setToastMessage('Demo mode activated');
+      setToastType('info');
+      setShowToast(true);
+    } else {
+      setToastMessage('Demo mode deactivated');
+      setToastType('info');
+      setShowToast(true);
+    }
+  };
+  
+  const toggleAutoProgressDemo = () => {
+    const newAutoProgressDemo = !autoProgressDemo;
+    setAutoProgressDemo(newAutoProgressDemo);
+    
+    if (newAutoProgressDemo) {
+      setToastMessage('Auto progress enabled - status will change automatically');
+      setToastType('info');
+      setShowToast(true);
+      
+      addMessageToChat({
+        sender: 'agent',
+        content: "I've enabled auto-progress mode. You'll see the claim move through different statuses automatically, including notifications and required actions.",
+        agentType: 'status-assistant'
+      });
+    }
   };
   
   const getToastType = (status: string): 'success' | 'error' | 'info' => {
@@ -353,7 +421,7 @@ const EnhancedTrackClaimStatus: React.FC = () => {
   if (activeTab !== 'track') return null;
   
   // Check if claim was started
-  if (!claimData) {
+  if (!claimData && !demoMode) {
     return (
       <div className="flex h-full justify-center items-center p-8">
         <div className="bg-yellow-50 p-4 rounded-lg max-w-md text-center">
@@ -362,19 +430,35 @@ const EnhancedTrackClaimStatus: React.FC = () => {
           <p className="text-yellow-700 mb-4">
             Please start a claim first before tracking its status.
           </p>
-          <button
-            onClick={() => setActiveTab('start')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-          >
-            Start a Claim
-          </button>
+          <div className="space-y-4">
+            <button
+              onClick={() => setActiveTab('start')}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+            >
+              Start a Claim
+            </button>
+            
+            <div className="flex flex-col items-center">
+              <p className="text-sm text-yellow-700 mb-2">Or enable demo mode to see claim tracking features</p>
+              <button
+                onClick={() => {
+                  toggleDemoMode();
+                  toggleAutoProgressDemo();
+                }}
+                className="inline-flex items-center px-4 py-2 border border-yellow-300 text-sm font-medium rounded-md shadow-sm text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none"
+              >
+                <Wand2 className="h-4 w-4 mr-1.5" />
+                Enable Demo Mode
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
   
   // Check if form was submitted
-  if (claimStatus === 'Not Started') {
+  if (claimStatus === 'Not Started' && !demoMode) {
     return (
       <div className="flex h-full justify-center items-center p-8">
         <div className="bg-yellow-50 p-4 rounded-lg max-w-md text-center">
@@ -383,12 +467,28 @@ const EnhancedTrackClaimStatus: React.FC = () => {
           <p className="text-yellow-700 mb-4">
             Please complete and submit the claim form before tracking its status.
           </p>
-          <button
-            onClick={() => setActiveTab('fill')}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-          >
-            Complete Claim Form
-          </button>
+          <div className="space-y-4">
+            <button
+              onClick={() => setActiveTab('fill')}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
+            >
+              Complete Claim Form
+            </button>
+            
+            <div className="flex flex-col items-center">
+              <p className="text-sm text-yellow-700 mb-2">Or enable demo mode to see claim tracking features</p>
+              <button
+                onClick={() => {
+                  toggleDemoMode();
+                  toggleAutoProgressDemo();
+                }}
+                className="inline-flex items-center px-4 py-2 border border-yellow-300 text-sm font-medium rounded-md shadow-sm text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none"
+              >
+                <Wand2 className="h-4 w-4 mr-1.5" />
+                Enable Demo Mode
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -397,19 +497,64 @@ const EnhancedTrackClaimStatus: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Track Your Claim</h1>
-          <p className="text-gray-600">
-            Monitor the progress of your claim and receive updates on its status.
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Track Your Claim</h1>
+            <p className="text-gray-600">
+              Monitor the progress of your claim and receive updates on its status.
+            </p>
+          </div>
+          
+          {/* Demo Mode Toggle */}
+          <div className="flex items-center">
+            <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
+            <button 
+              onClick={toggleDemoMode}
+              className="focus:outline-none"
+              aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
+            >
+              {demoMode ? (
+                <ToggleRight className="h-6 w-6 text-blue-600" />
+              ) : (
+                <ToggleLeft className="h-6 w-6 text-gray-400" />
+              )}
+            </button>
+          </div>
         </div>
+        
+        {/* Auto Progress Demo Toggle */}
+        {demoMode && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 animate-fade-in">
+            <div className="flex items-start">
+              <Wand2 className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800 mb-1">Demo Mode Activated</h3>
+                <p className="text-sm text-blue-600 mb-2">
+                  Use demo mode to simulate claim status changes and explore how the tracking system works. 
+                </p>
+                <div className="flex items-center">
+                  <button
+                    onClick={toggleAutoProgressDemo}
+                    className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none transition-colors"
+                  >
+                    <Clock className="mr-1.5 h-4 w-4" />
+                    {autoProgressDemo ? "Disable Auto Progress" : "Enable Auto Progress"}
+                  </button>
+                  <span className="ml-2 text-xs text-blue-500">
+                    {autoProgressDemo ? "Status will change automatically" : "Use controls to change status manually"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className={`bg-white rounded-lg shadow border border-gray-200 p-6 mb-6 transition-all duration-500 transform ${animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Claim #{claimData.policyNumber}</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Claim #{claimData?.policyNumber || "ALZ-1234567"}</h2>
               <p className="text-sm text-gray-500">
-                {claimData.claimType} - Filed on {new Date().toLocaleDateString()}
+                {claimData?.claimType || "Life Insurance Claim"} - Filed on {new Date().toLocaleDateString()}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -466,7 +611,7 @@ const EnhancedTrackClaimStatus: React.FC = () => {
           )}
           
           {/* Status Timeline - Improved Visual */}
-          <div className="relative mb-10 pt-4">
+          <div className="relative mb-10 pt-4" ref={timelineRef}>
             <div className="absolute left-8 top-0 bottom-0 w-1 bg-gray-200 rounded-full"></div>
             
             <div className="absolute left-8 top-0 w-1 bg-blue-500 rounded-full transition-all duration-1000 ease-out-in"
@@ -840,15 +985,15 @@ const EnhancedTrackClaimStatus: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-6">
                   <div>
                     <p className="text-xs text-gray-500">Policy Number</p>
-                    <p className="text-sm font-medium">{claimData.policyNumber}</p>
+                    <p className="text-sm font-medium">{claimData?.policyNumber || "ALZ-1234567"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Policy Holder</p>
-                    <p className="text-sm font-medium">{claimData.policyHolder}</p>
+                    <p className="text-sm font-medium">{claimData?.policyHolder || "John Smith"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Claim Type</p>
-                    <p className="text-sm font-medium">{claimData.claimType}</p>
+                    <p className="text-sm font-medium">{claimData?.claimType || "Life Insurance Claim"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Submission Date</p>
@@ -856,11 +1001,11 @@ const EnhancedTrackClaimStatus: React.FC = () => {
                   </div>
                   <div className="sm:col-span-2">
                     <p className="text-xs text-gray-500">Claim Reason</p>
-                    <p className="text-sm">{claimData.claimReason}</p>
+                    <p className="text-sm">{claimData?.claimReason || "Natural causes"}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Documents Submitted</p>
-                    <p className="text-sm font-medium">{documents.length}</p>
+                    <p className="text-sm font-medium">{documents.length || (demoMode ? 3 : 0)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">Assigned To</p>
@@ -871,8 +1016,9 @@ const EnhancedTrackClaimStatus: React.FC = () => {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Expected Timeline</h4>
                   <p className="text-sm text-gray-600">
-                    Typical processing time for {claimData.claimType} claims is {
+                    Typical processing time for {claimData?.claimType || "Life Insurance"} claims is {
                       (() => {
+                        if (!claimData) return "7-10 business days";
                         const claimTypeInfo = claimTypesData.find(type => type.id === claimData.policyType);
                         return claimTypeInfo ? claimTypeInfo.processingTime : '7-10 business days';
                       })()
@@ -1032,14 +1178,14 @@ const EnhancedTrackClaimStatus: React.FC = () => {
       </div>
       
       {/* Email Template Preview Modal */}
-      {showEmailPreview && claimData && (
+      {showEmailPreview && (
         <div className="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 flex items-center justify-center">
           <div className="w-full max-w-3xl p-4">
             <EmailTemplate
               templateType={emailTemplateType}
-              recipientName={claimData.policyHolder}
-              policyNumber={claimData.policyNumber}
-              claimType={claimData.claimType}
+              recipientName={claimData?.policyHolder || "John Smith"}
+              policyNumber={claimData?.policyNumber || "ALZ-1234567"}
+              claimType={claimData?.claimType || "Life Insurance Claim"}
               claimStatus={claimStatus}
               onSend={handleSendEmailNotification}
               onClose={() => setShowEmailPreview(false)}
