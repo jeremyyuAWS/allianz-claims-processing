@@ -12,14 +12,14 @@ import {
   Upload,
   ArrowRight,
   X,
-  ToggleLeft,
-  ToggleRight,
   Check,
   Clipboard,
   Download,
   Bell,
   Mail,
-  DollarSign
+  DollarSign,
+  FileCheck,
+  Shield
 } from 'lucide-react';
 import EmailTemplate from '../common/EmailTemplate';
 import Toast from '../common/Toast';
@@ -32,13 +32,13 @@ const EnhancedTrackClaimStatus: React.FC = () => {
     claimStatus, 
     setClaimStatus, 
     addMessageToChat, 
-    documents 
+    documents,
+    demoMode
   } = useAppContext();
   
   const [showDetails, setShowDetails] = useState(false);
   const [statusHistory, setStatusHistory] = useState<{ status: string, timestamp: Date, message: string }[]>([]);
   const [animate, setAnimate] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
@@ -141,39 +141,6 @@ const EnhancedTrackClaimStatus: React.FC = () => {
       setStatusHistory(initialHistory);
     }
   }, [claimStatus, statusHistory.length, documents.length]);
-  
-  const toggleDemoMode = () => {
-    setDemoMode(!demoMode);
-    
-    if (!demoMode) {
-      // Enabling demo mode
-      addMessageToChat({
-        sender: 'agent',
-        content: "Demo mode activated. You'll see automatic status updates and notifications to demonstrate the claim tracking experience.",
-        agentType: 'status-assistant'
-      });
-      
-      // Show toast notification
-      setToastMessage('Demo mode activated');
-      setToastType('info');
-      setShowToast(true);
-      
-      // Reset to In Review status for demo
-      if (claimStatus !== 'In Review') {
-        setClaimStatus('In Review');
-        
-        // Add to status history
-        setStatusHistory(prev => [
-          ...prev, 
-          { 
-            status: 'In Review', 
-            timestamp: new Date(), 
-            message: 'Claim is now being reviewed by our claims processing team.' 
-          }
-        ]);
-      }
-    }
-  };
   
   // Helper function to get status step number
   const getStatusStep = (status: string) => {
@@ -344,38 +311,6 @@ const EnhancedTrackClaimStatus: React.FC = () => {
                 >
                   Complete Claim Form
                 </button>
-                <button
-                  onClick={() => {
-                    setDemoMode(true);
-                    setClaimStatus('In Review');
-                    // Add to status history
-                    setStatusHistory([
-                      { 
-                        status: 'Documents Pending', 
-                        timestamp: new Date(Date.now() - 3600000 * 3), // 3 hours ago
-                        message: 'Claim initiated. Waiting for document uploads.' 
-                      },
-                      { 
-                        status: 'Documents Verified', 
-                        timestamp: new Date(Date.now() - 3600000 * 2), // 2 hours ago
-                        message: 'Document verification complete.' 
-                      },
-                      { 
-                        status: 'In Review', 
-                        timestamp: new Date(), 
-                        message: 'Claim is being reviewed by our claims processing team.' 
-                      }
-                    ]);
-                    
-                    // Show toast notification
-                    setToastMessage('Demo mode activated');
-                    setToastType('info');
-                    setShowToast(true);
-                  }}
-                  className="inline-flex items-center px-4 py-2 border border-yellow-300 text-sm font-medium rounded-md shadow-sm text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none"
-                >
-                  Use Demo Mode
-                </button>
               </div>
             </div>
           </div>
@@ -387,27 +322,11 @@ const EnhancedTrackClaimStatus: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">Track Your Claim</h1>
-            <p className="text-gray-600">
-              Monitor the progress of your claim and receive updates on its status.
-            </p>
-          </div>
-          <div className="flex items-center">
-            <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
-            <button 
-              className="focus:outline-none" 
-              onClick={toggleDemoMode}
-              aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
-            >
-              {demoMode ? (
-                <ToggleRight className="h-6 w-6 text-blue-600" />
-              ) : (
-                <ToggleLeft className="h-6 w-6 text-gray-400" />
-              )}
-            </button>
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Track Your Claim</h1>
+          <p className="text-gray-600">
+            Monitor the progress of your claim and receive updates on its status.
+          </p>
         </div>
         
         <div className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6 transition-all duration-500 transform ${animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>

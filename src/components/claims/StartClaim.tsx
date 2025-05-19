@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Info, ArrowRight, FileText, HelpCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Info, ArrowRight, FileText, HelpCircle } from 'lucide-react';
 import claimTypesData from '../../data/claim_types.json';
 
 const StartClaim: React.FC = () => {
-  const { setClaimData, setActiveTab, addMessageToChat, user } = useAppContext();
+  const { setClaimData, setActiveTab, addMessageToChat, user, demoMode } = useAppContext();
   const [selectedClaimType, setSelectedClaimType] = useState<string | null>(null);
   const [claimReason, setClaimReason] = useState<string>('');
   const [showGuide, setShowGuide] = useState(true);
   const [showRequiredDocs, setShowRequiredDocs] = useState<boolean>(false);
   const [claimTypeDetail, setClaimTypeDetail] = useState<any>(null);
-  const [demoMode, setDemoMode] = useState(false);
   
   useEffect(() => {
     // Welcome message for this tab
@@ -114,11 +113,6 @@ const StartClaim: React.FC = () => {
     }
   };
 
-  // Toggle demo mode
-  const toggleDemoMode = () => {
-    setDemoMode(!demoMode);
-  };
-
   const isDisabled = (!selectedClaimType || !claimReason.trim()) && !demoMode;
 
   return (
@@ -131,18 +125,6 @@ const StartClaim: React.FC = () => {
               <p className="text-gray-600">
                 Select the type of policy you're filing a claim for, and we'll guide you through the process.
               </p>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 mr-2">Demo mode</span>
-              <button 
-                onClick={toggleDemoMode}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${demoMode ? 'bg-blue-600' : 'bg-gray-200'}`}
-                aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
-              >
-                <span 
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${demoMode ? 'translate-x-6' : 'translate-x-1'}`} 
-                />
-              </button>
             </div>
           </div>
         </div>
@@ -169,7 +151,7 @@ const StartClaim: React.FC = () => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6 animate-fade-in">
             <div className="flex items-start">
               <div className="flex-shrink-0 h-10 w-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                <ToggleRight className="h-5 w-5 text-green-600" />
+                <FileText className="h-5 w-5 text-green-600" />
               </div>
               <div>
                 <h3 className="text-md font-medium text-green-800 mb-1">Demo Mode Activated</h3>

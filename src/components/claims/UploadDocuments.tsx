@@ -1,18 +1,17 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAppContext } from '../../context/AppContext';
-import { Upload, File, CheckCircle, AlertTriangle, Info, XCircle, ArrowRight, Eye, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Upload, File, CheckCircle, AlertTriangle, Info, XCircle, ArrowRight, Eye, FileText } from 'lucide-react';
 import { Document, DocumentType } from '../../types';
 import claimTypesData from '../../data/claim_types.json';
 
 const UploadDocuments: React.FC = () => {
-  const { claimData, activeTab, setActiveTab, addMessageToChat, uploadedDocuments, setUploadedDocuments, documents, setDocuments } = useAppContext();
+  const { claimData, activeTab, setActiveTab, addMessageToChat, uploadedDocuments, setUploadedDocuments, documents, setDocuments, demoMode } = useAppContext();
   
   const [isDragActive, setIsDragActive] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Claim Form');
   const [requiredDocuments, setRequiredDocuments] = useState<string[]>([]);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
   
   useEffect(() => {
     // Determine required documents based on claim type
@@ -39,6 +38,29 @@ const UploadDocuments: React.FC = () => {
     }
   }, [claimData, activeTab, documents.length, addMessageToChat]);
   
+  // Check for demo mode and auto-advance if enabled
+  useEffect(() => {
+    if (demoMode && activeTab === 'upload') {
+      // Add demo documents for all required document types
+      setTimeout(() => {
+        // If no documents have been added yet, add them
+        if (documents.length === 0) {
+          // Add one document for each required document type
+          requiredDocuments.forEach((docType, index) => {
+            setTimeout(() => {
+              addDemoDocument(index, docType as DocumentType);
+            }, index * 1000); // Add documents with a staggered delay
+          });
+          
+          // After all documents are added, proceed to the next step
+          setTimeout(() => {
+            handleContinue();
+          }, requiredDocuments.length * 1000 + 1500);
+        }
+      }, 1000);
+    }
+  }, [demoMode, activeTab, requiredDocuments]);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     
@@ -174,14 +196,14 @@ const UploadDocuments: React.FC = () => {
   };
   
   const handleContinue = () => {
-    // Check if all required documents are uploaded
+    // Check if all required documents are uploaded or if in demo mode
     const uploadedTypes = documents.map(doc => doc.type);
     const uniqueUploadedTypes = [...new Set(uploadedTypes)];
     const allRequiredUploaded = requiredDocuments.every(type => 
       uniqueUploadedTypes.includes(type as DocumentType)
     );
     
-    if (allRequiredUploaded) {
+    if (allRequiredUploaded || demoMode) {
       // Notify the user and proceed
       addMessageToChat({
         sender: 'agent',
@@ -198,20 +220,6 @@ const UploadDocuments: React.FC = () => {
       addMessageToChat({
         sender: 'agent',
         content: `Some required documents are still missing. Please upload the following: ${missingDocs.join(", ")} before proceeding.`,
-        agentType: 'document-assistant'
-      });
-    }
-  };
-  
-  // Demo mode handlers
-  const toggleDemoMode = () => {
-    setDemoMode(!demoMode);
-    
-    // Add message to chat about demo mode
-    if (!demoMode) {
-      addMessageToChat({
-        sender: 'agent',
-        content: "Demo mode activated. You can now use sample documents without having to upload actual files.",
         agentType: 'document-assistant'
       });
     }
@@ -245,8 +253,7 @@ const UploadDocuments: React.FC = () => {
     ]
   };
   
-  const addDemoDocument = (fileIndex: number = 0) => {
-    const docType = selectedDocType;
+  const addDemoDocument = (fileIndex: number = 0, docType: DocumentType = selectedDocType) => {
     const availableDocs = demoDocuments[docType as keyof typeof demoDocuments] || demoDocuments['Other'];
     const demoDoc = availableDocs[fileIndex % availableDocs.length];
     
@@ -331,22 +338,6 @@ const UploadDocuments: React.FC = () => {
           <p className="text-gray-600">
             Please upload the required documentation for your {claimData.claimType.toLowerCase()}.
           </p>
-        </div>
-        
-        {/* Demo Mode Toggle */}
-        <div className="flex items-center justify-end mb-4">
-          <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
-          <button 
-            className="focus:outline-none" 
-            onClick={toggleDemoMode}
-            aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
-          >
-            {demoMode ? (
-              <ToggleRight className="h-6 w-6 text-blue-600" />
-            ) : (
-              <ToggleLeft className="h-6 w-6 text-gray-400" />
-            )}
-          </button>
         </div>
         
         <div className="bg-blue-50 rounded-lg p-4 mb-6 flex items-start">
@@ -629,11 +620,11 @@ const UploadDocuments: React.FC = () => {
           <button
             onClick={handleContinue}
             className={`flex items-center px-4 py-2 rounded-md shadow-sm text-white ${
-              documents.length === 0
+              documents.length === 0 && !demoMode
                 ? 'bg-gray-300 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
-            disabled={documents.length === 0}
+            disabled={documents.length === 0 && !demoMode}
           >
             <span>Continue to Claim Form</span>
             <ArrowRight className="ml-2 h-4 w-4" />

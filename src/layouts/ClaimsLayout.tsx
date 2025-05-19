@@ -12,7 +12,7 @@ import ImprovedFillClaimForm from '../components/claims/ImprovedFillClaimForm';
 import EnhancedTrackClaimStatus from '../components/claims/EnhancedTrackClaimStatus';
 
 const ClaimsLayout: React.FC = () => {
-  const { activeTab, setActiveTab } = useAppContext();
+  const { activeTab, setActiveTab, demoMode, setDemoMode } = useAppContext();
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [useEnhancedUI, setUseEnhancedUI] = useState(true);
 
@@ -78,11 +78,11 @@ const ClaimsLayout: React.FC = () => {
         <div className="flex items-center">
           <span className="text-sm text-gray-600 mr-2">Demo mode</span>
           <button 
-            onClick={() => setUseEnhancedUI(!useEnhancedUI)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${useEnhancedUI ? 'bg-blue-600' : 'bg-gray-200'}`}
+            onClick={() => setDemoMode(!demoMode)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${demoMode ? 'bg-blue-600' : 'bg-gray-200'}`}
           >
             <span 
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${useEnhancedUI ? 'translate-x-6' : 'translate-x-1'}`} 
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${demoMode ? 'translate-x-6' : 'translate-x-1'}`} 
             />
           </button>
         </div>

@@ -11,8 +11,6 @@ import {
   ArrowRight, 
   Eye, 
   FileText, 
-  ToggleLeft, 
-  ToggleRight,
   X,
   Shield,
   Search,
@@ -27,13 +25,12 @@ import DocumentVerificationFeedback from '../common/DocumentVerificationFeedback
 import Toast from '../common/Toast';
 
 const EnhancedUploadDocuments: React.FC = () => {
-  const { claimData, activeTab, setActiveTab, addMessageToChat, uploadedDocuments, setUploadedDocuments, documents, setDocuments } = useAppContext();
+  const { claimData, activeTab, setActiveTab, addMessageToChat, uploadedDocuments, setUploadedDocuments, documents, setDocuments, demoMode } = useAppContext();
   
   const [isDragActive, setIsDragActive] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Claim Form');
   const [requiredDocuments, setRequiredDocuments] = useState<string[]>([]);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
-  const [demoMode, setDemoMode] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -529,20 +526,6 @@ const EnhancedUploadDocuments: React.FC = () => {
                 <h2 className="text-lg font-semibold text-gray-900">Upload Documents</h2>
                 <p className="text-sm text-gray-500">Files should be PDF, JPG, or PNG (max 10MB)</p>
               </div>
-            </div>
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
-              <button 
-                onClick={() => setDemoMode(!demoMode)}
-                className="focus:outline-none"
-                aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
-              >
-                {demoMode ? (
-                  <ToggleRight className="h-6 w-6 text-blue-600" />
-                ) : (
-                  <ToggleLeft className="h-6 w-6 text-gray-400" />
-                )}
-              </button>
             </div>
           </div>
           

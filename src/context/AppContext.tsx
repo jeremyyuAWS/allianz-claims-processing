@@ -20,6 +20,8 @@ interface AppContextType {
   setClaimStatus: (status: ClaimStatus) => void;
   documents: Document[];
   setDocuments: (docs: Document[]) => void;
+  demoMode: boolean;
+  setDemoMode: (enabled: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -37,6 +39,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   });
   const [documents, setDocuments] = useState<Document[]>([]);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+  const [demoMode, setDemoMode] = useState(false);
 
   // Monitor tab changes for a more cohesive workflow
   useEffect(() => {
@@ -80,6 +83,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }
   }, [activeTab, claimData, uploadedDocuments, claimStatus]);
+  
+  // Monitor demoMode changes
+  useEffect(() => {
+    if (demoMode) {
+      addMessageToChat({
+        sender: 'agent',
+        content: "Demo mode has been activated. This will simulate the claims process with sample data and automatic progression through the workflow.",
+        agentType: 'claims-assistant'
+      });
+    }
+  }, [demoMode]);
 
   const addMessageToChat = useCallback((message: Omit<Message, 'id' | 'timestamp'>) => {
     const newMessage = {
@@ -193,7 +207,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         claimStatus,
         setClaimStatus,
         documents,
-        setDocuments
+        setDocuments,
+        demoMode,
+        setDemoMode
       }}
     >
       {children}

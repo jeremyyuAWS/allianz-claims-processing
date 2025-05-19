@@ -7,7 +7,7 @@ import ValidationIndicator from '../common/ValidationIndicator';
 import Toast from '../common/Toast';
 
 const ImprovedFillClaimForm: React.FC = () => {
-  const { claimData, activeTab, setActiveTab, uploadedDocuments, addMessageToChat, setClaimStatus, claimStatus } = useAppContext();
+  const { claimData, activeTab, setActiveTab, uploadedDocuments, addMessageToChat, setClaimStatus, claimStatus, demoMode } = useAppContext();
   
   const [formData, setFormData] = useState({
     policyNumber: '',
@@ -33,7 +33,6 @@ const ImprovedFillClaimForm: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [isSaving, setIsSaving] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
   
   useEffect(() => {
     if (claimData) {
@@ -328,7 +327,7 @@ const ImprovedFillClaimForm: React.FC = () => {
     );
   }
   
-  if (uploadedDocuments.length === 0) {
+  if (uploadedDocuments.length === 0 && !demoMode) {
     return (
       <div className="flex h-full justify-center items-center p-8">
         <div className="bg-yellow-50 p-6 rounded-lg max-w-md">
@@ -348,12 +347,6 @@ const ImprovedFillClaimForm: React.FC = () => {
                 >
                   Upload Documents
                 </button>
-                <button
-                  onClick={() => setDemoMode(true)}
-                  className="inline-flex items-center px-4 py-2 border border-yellow-300 text-sm font-medium rounded-md shadow-sm text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none"
-                >
-                  Use Demo Mode
-                </button>
               </div>
             </div>
           </div>
@@ -372,19 +365,6 @@ const ImprovedFillClaimForm: React.FC = () => {
               <p className="text-gray-600">
                 Please complete the form below for your {claimData.claimType.toLowerCase()}.
               </p>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-sm text-gray-600 mr-2">Demo mode</span>
-              <button 
-                onClick={() => setDemoMode(!demoMode)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${demoMode ? 'bg-blue-600' : 'bg-gray-200'}`}
-                aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
-              >
-                <span 
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${demoMode ? 'translate-x-6' : 'translate-x-1'}`} 
-                />
-              </button>
             </div>
           </div>
         </div>
