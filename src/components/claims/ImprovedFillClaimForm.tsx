@@ -7,29 +7,35 @@ import {
   FileText, 
   Download, 
   Info, 
-  Clock, 
-  Mail, 
-  Edit3, 
-  XCircle, 
-  CheckCircle2, 
-  CreditCard, 
-  DollarSign,
-  Save,
+  User,
+  Home, 
+  Calendar,
   Phone,
-  ToggleLeft, 
+  Mail,
+  DollarSign,
+  CreditCard,
+  Building,
+  AtSign,
+  ToggleLeft,
   ToggleRight,
-  Wand2,
-  CalendarDays,
-  User
+  Zap,
+  Shield
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { isValidEmail, isValidPhone, formatPhoneNumber } from '../../utils/validators';
 import ValidationIndicator from '../common/ValidationIndicator';
 import Toast from '../common/Toast';
-import EmailTemplate from '../common/EmailTemplate';
 
 const ImprovedFillClaimForm: React.FC = () => {
-  const { claimData, activeTab, setActiveTab, uploadedDocuments, addMessageToChat, setClaimStatus, claimStatus } = useAppContext();
+  const { 
+    claimData, 
+    activeTab, 
+    setActiveTab, 
+    uploadedDocuments, 
+    addMessageToChat, 
+    setClaimStatus, 
+    claimStatus 
+  } = useAppContext();
   
   const [formData, setFormData] = useState({
     policyNumber: '',
@@ -55,15 +61,40 @@ const ImprovedFillClaimForm: React.FC = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
   const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [showEmailPreview, setShowEmailPreview] = useState(false);
-  const [currentField, setCurrentField] = useState<string | null>(null);
-  const [fieldFocusCount, setFieldFocusCount] = useState<Record<string, number>>({});
-  const [validationAnimations, setValidationAnimations] = useState<Record<string, boolean>>({});
+  const [activeField, setActiveField] = useState<string | null>(null);
+  const [animateField, setAnimateField] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Refs for field animation
-  const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
+  const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
+  
+  // Demo data profiles
+  const demoProfiles = [
+    {
+      name: "John Smith",
+      relation: "spouse",
+      phone: "(555) 123-4567",
+      email: "john.smith@example.com",
+      address: "123 Main St, Anytown, CA 90210",
+      date: dayjs().subtract(10, 'day').format('YYYY-MM-DD')
+    },
+    {
+      name: "Sarah Johnson",
+      relation: "child",
+      phone: "(555) 987-6543",
+      email: "sarah.j@example.com",
+      address: "456 Oak Ave, Somewhere, NY 10001",
+      date: dayjs().subtract(7, 'day').format('YYYY-MM-DD')
+    },
+    {
+      name: "Michael Wilson",
+      relation: "sibling",
+      phone: "(555) 456-7890",
+      email: "michael.wilson@example.com",
+      address: "789 Pine Dr, Elsewhere, TX 75001",
+      date: dayjs().subtract(14, 'day').format('YYYY-MM-DD')
+    }
+  ];
   
   useEffect(() => {
     if (claimData) {
@@ -108,9 +139,6 @@ const ImprovedFillClaimForm: React.FC = () => {
   
   // Validate a single field
   const validateSingleField = (name: string, value: string): string => {
-    // Skip validation in demo mode
-    if (demoMode) return '';
-    
     const fieldLabels: Record<string, string> = {
       policyNumber: 'Policy number',
       claimantName: 'Claimant name',
@@ -152,9 +180,6 @@ const ImprovedFillClaimForm: React.FC = () => {
   };
   
   const validateForm = () => {
-    // Skip validation in demo mode
-    if (demoMode) return true;
-    
     const errors: Record<string, string> = {};
     
     // Validate required fields
@@ -181,52 +206,45 @@ const ImprovedFillClaimForm: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
   
-  const populateDemoData = () => {
-    // Generate a random date in the last 30 days
-    const randomDate = new Date();
-    randomDate.setDate(randomDate.getDate() - Math.floor(Math.random() * 30));
-    
-    // Sample data
-    const demoFormData = {
-      policyNumber: claimData?.policyNumber || 'ALZ-1234567',
-      claimantName: claimData?.policyHolder || 'John Smith',
-      dateOfIncident: dayjs(randomDate).format('YYYY-MM-DD'),
-      beneficiaryName: 'Sarah Johnson',
-      beneficiaryRelation: 'spouse',
-      beneficiaryPhone: '(555) 123-4567',
-      beneficiaryEmail: 'sarah.johnson@example.com',
-      beneficiaryAddress: '123 Main Street, Anytown, CA 90210',
-      paymentMethod: 'directDeposit',
-      accountType: 'checking',
-      accountNumber: '123456789',
-      routingNumber: '987654321',
-      additionalInfo: 'This is a demo claim submission. The policyholder passed away due to natural causes.'
-    };
-    
-    // Set form data
-    setFormData(demoFormData);
-    
-    // Mark all fields as touched
-    const allTouched: Record<string, boolean> = {};
-    Object.keys(demoFormData).forEach(key => {
-      allTouched[key] = true;
-    });
-    setFormTouched(allTouched);
-    
-    // Add message to chat
-    addMessageToChat({
-      sender: 'agent',
-      content: "I've populated the form with sample data for demonstration purposes. You can review this information and submit the claim to proceed to the claim status tracking.",
-      agentType: 'form-assistant'
-    });
-    
-    // Show toast
-    setToastMessage('Form populated with sample data');
-    setToastType('info');
-    setShowToast(true);
-  };
-  
   const handleSubmit = () => {
+    // Skip validation in demo mode
+    if (demoMode) {
+      setIsSubmitting(true);
+      
+      // Show success toast
+      setToastMessage('Processing your claim...');
+      setToastType('info');
+      setShowToast(true);
+      
+      // Simulate processing delay
+      setTimeout(() => {
+        setFormSubmitted(true);
+        setIsSubmitting(false);
+        
+        // Update the claim status
+        setClaimStatus('In Review');
+        
+        // Show success toast
+        setToastMessage('Claim form submitted successfully!');
+        setToastType('success');
+        setShowToast(true);
+        
+        // Add success message to chat
+        addMessageToChat({
+          sender: 'agent',
+          content: "Thank you! Your claim form has been successfully submitted. You can track the status of your claim in the 'Track Claim Status' tab. Our team will review your submission and contact you if any additional information is needed.",
+          agentType: 'form-assistant'
+        });
+        
+        // Automatically navigate to tracking after short delay
+        setTimeout(() => {
+          setActiveTab('track');
+        }, 2000);
+      }, 2000);
+      
+      return;
+    }
+    
     // Mark all fields as touched
     const allTouched: Record<string, boolean> = {};
     Object.keys(formData).forEach(key => {
@@ -234,12 +252,40 @@ const ImprovedFillClaimForm: React.FC = () => {
     });
     setFormTouched(allTouched);
     
-    if (validateForm() || demoMode) {
+    if (validateForm()) {
       // Show loading state
-      setIsSaving(true);
+      setIsSubmitting(true);
       
-      // Show email preview before final submission
-      setShowEmailPreview(true);
+      // Show processing toast
+      setToastMessage('Processing your claim...');
+      setToastType('info');
+      setShowToast(true);
+      
+      // Simulate API call delay
+      setTimeout(() => {
+        setIsSubmitting(false);
+        setFormSubmitted(true);
+        
+        // Update the claim status
+        setClaimStatus('In Review');
+        
+        // Show success toast
+        setToastMessage('Claim form submitted successfully!');
+        setToastType('success');
+        setShowToast(true);
+        
+        // Add success message to chat
+        addMessageToChat({
+          sender: 'agent',
+          content: "Thank you! Your claim form has been successfully submitted. You can track the status of your claim in the 'Track Claim Status' tab. Our team will review your submission and contact you if any additional information is needed.",
+          agentType: 'form-assistant'
+        });
+        
+        // Automatically navigate to tracking after short delay
+        setTimeout(() => {
+          setActiveTab('track');
+        }, 3000);
+      }, 2500);
     } else {
       // Show error toast
       setToastMessage('Please correct the errors in the form before submitting');
@@ -253,67 +299,17 @@ const ImprovedFillClaimForm: React.FC = () => {
         agentType: 'form-assistant'
       });
       
-      // Animate validation errors
-      const errorFields = Object.keys(formErrors);
-      const animations: Record<string, boolean> = {};
+      // Focus on the first field with an error
+      const firstErrorField = Object.keys(formErrors)[0];
+      const element = fieldRefs.current[firstErrorField];
+      if (element) {
+        element.focus();
+      }
       
-      errorFields.forEach(field => {
-        animations[field] = true;
-        
-        // Focus on the first field with an error
-        if (fieldRefs.current[field]) {
-          fieldRefs.current[field]?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-          });
-          
-          // Focus after scrolling
-          setTimeout(() => {
-            if (fieldRefs.current[field] instanceof HTMLInputElement) {
-              (fieldRefs.current[field] as HTMLInputElement).focus();
-            }
-          }, 500);
-        }
-      });
-      
-      setValidationAnimations(animations);
-      
-      // Turn off animations after they complete
-      setTimeout(() => {
-        setValidationAnimations({});
-      }, 1000);
+      // Animate the field with error
+      setAnimateField(firstErrorField);
+      setTimeout(() => setAnimateField(null), 1000);
     }
-  };
-  
-  const handleEmailConfirmation = () => {
-    setShowEmailPreview(false);
-    setIsSaving(true);
-      
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsSaving(false);
-      setFormSubmitted(true);
-      
-      // Update the claim status
-      setClaimStatus('In Review');
-      
-      // Show success toast
-      setToastMessage('Claim form submitted successfully!');
-      setToastType('success');
-      setShowToast(true);
-      
-      // Add success message to chat
-      addMessageToChat({
-        sender: 'agent',
-        content: "Thank you! Your claim form has been successfully submitted. You can track the status of your claim in the 'Track Claim Status' tab. Our team will review your submission and contact you if any additional information is needed.",
-        agentType: 'form-assistant'
-      });
-      
-      // Automatically navigate to tracking after short delay
-      setTimeout(() => {
-        setActiveTab('track');
-      }, 3000);
-    }, 1500);
   };
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -338,8 +334,11 @@ const ImprovedFillClaimForm: React.FC = () => {
       [name]: true
     });
     
-    // Validate the field if it's been touched and not in demo mode
-    if (formTouched[name] && !demoMode) {
+    // Track active field
+    setActiveField(name);
+    
+    // Validate the field if it's been touched
+    if (formTouched[name]) {
       const error = validateSingleField(name, name === 'beneficiaryPhone' ? formatPhoneNumber(value) : value);
       
       setFormErrors({
@@ -348,7 +347,13 @@ const ImprovedFillClaimForm: React.FC = () => {
       });
       
       // Provide real-time guidance based on field interactions
-      if (name === 'beneficiaryRelation' && value && fieldFocusCount[name] === 1) {
+      if (error && !formErrors[name]) {
+        // Field just became invalid
+        setAnimateField(name);
+        setTimeout(() => setAnimateField(null), 800);
+      }
+      
+      if (name === 'beneficiaryRelation' && value) {
         const delay = setTimeout(() => {
           addMessageToChat({
             sender: 'agent',
@@ -358,13 +363,6 @@ const ImprovedFillClaimForm: React.FC = () => {
         }, 1000);
         
         return () => clearTimeout(delay);
-      }
-      
-      // If field becomes valid after being invalid, provide positive feedback
-      if (formErrors[name] && !error) {
-        setToastMessage(`${name === 'beneficiaryPhone' ? 'Phone number' : name === 'beneficiaryEmail' ? 'Email' : name} looks good!`);
-        setToastType('success');
-        setShowToast(true);
       }
     }
   };
@@ -378,12 +376,6 @@ const ImprovedFillClaimForm: React.FC = () => {
       [name]: true
     });
     
-    // Update the current field being interacted with
-    setCurrentField(null);
-    
-    // Skip validation in demo mode
-    if (demoMode) return;
-    
     // Validate on blur
     const error = validateSingleField(name, value);
     
@@ -392,65 +384,40 @@ const ImprovedFillClaimForm: React.FC = () => {
       [name]: error
     });
     
-    // If we have a validation error, show a helpful message in the chat
-    if (error && fieldFocusCount[name] === 1) {
-      const fieldMap: Record<string, string> = {
-        beneficiaryPhone: 'phone number',
-        beneficiaryEmail: 'email address',
-        accountNumber: 'account number',
-        routingNumber: 'routing number',
-      };
-      
-      const fieldName = fieldMap[name] || name.replace(/([A-Z])/g, ' $1').toLowerCase();
-      
+    // Clear active field
+    setActiveField(null);
+  };
+  
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name } = e.target;
+    setActiveField(name);
+    
+    // Provide field-specific guidance when a user focuses on a field
+    if (name === 'beneficiaryPhone' && !formTouched[name]) {
       addMessageToChat({
         sender: 'agent',
-        content: `I notice there may be an issue with the ${fieldName} you entered. ${error}. Please correct this to continue.`,
+        content: "Please enter the beneficiary's phone number in the format (XXX) XXX-XXXX. We'll use this to contact them if we need additional information.",
+        agentType: 'form-assistant'
+      });
+    } else if (name === 'beneficiaryEmail' && !formTouched[name]) {
+      addMessageToChat({
+        sender: 'agent',
+        content: "We'll send claim status updates to this email address. Make sure it's entered correctly.",
+        agentType: 'form-assistant'
+      });
+    } else if (name === 'routingNumber' && !formTouched[name]) {
+      addMessageToChat({
+        sender: 'agent',
+        content: "Your routing number is a 9-digit code that identifies your bank. It can be found on the bottom left of your check.",
         agentType: 'form-assistant'
       });
     }
   };
   
-  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name } = e.target;
-    
-    // Update the current field being interacted with
-    setCurrentField(name);
-    
-    // Skip further processing in demo mode
-    if (demoMode) return;
-    
-    // Track focus counts for this field to provide contextual help only on first interaction
-    setFieldFocusCount(prev => ({
-      ...prev,
-      [name]: (prev[name] || 0) + 1
-    }));
-    
-    // Provide helpful guidance on first focus
-    if (!fieldFocusCount[name]) {
-      const helpMessages: Record<string, string> = {
-        beneficiaryName: "Enter the full legal name of the person who will receive the claim payment.",
-        beneficiaryPhone: "We'll use this number to contact the beneficiary if we have questions about the claim.",
-        beneficiaryEmail: "Providing an email allows us to send automated updates about the claim status.",
-        routingNumber: "The 9-digit routing number can be found on the bottom left of a check.",
-        accountNumber: "Your account number appears on the bottom of your check, to the right of the routing number.",
-        dateOfIncident: "For death claims, enter the date of death. For other claims, enter the date of the event that triggered the claim."
-      };
-      
-      if (helpMessages[name]) {
-        addMessageToChat({
-          sender: 'agent',
-          content: helpMessages[name],
-          agentType: 'form-assistant'
-        });
-      }
-    }
-  };
-  
   // Auto-save form when fields change
   useEffect(() => {
-    // Skip initial render or if in demo mode
-    if (Object.keys(formTouched).length === 0 || demoMode) return;
+    // Skip initial render
+    if (Object.keys(formTouched).length === 0) return;
     
     // Only save if at least one field has been touched
     if (Object.values(formTouched).some(Boolean)) {
@@ -460,8 +427,6 @@ const ImprovedFillClaimForm: React.FC = () => {
         setIsSaving(true);
         setTimeout(() => {
           setIsSaving(false);
-          setLastSaved(new Date());
-          
           // Show auto-save toast occasionally
           if (Math.random() > 0.7) {
             setToastMessage('Form progress auto-saved');
@@ -473,7 +438,7 @@ const ImprovedFillClaimForm: React.FC = () => {
       
       return () => clearTimeout(saveTimer);
     }
-  }, [formData, formTouched, demoMode]);
+  }, [formData, formTouched]);
   
   const generatePdf = () => {
     // In a real app, this would generate a PDF of the form
@@ -491,23 +456,47 @@ const ImprovedFillClaimForm: React.FC = () => {
   };
   
   const toggleDemoMode = () => {
-    const newDemoMode = !demoMode;
-    setDemoMode(newDemoMode);
+    setDemoMode(!demoMode);
     
-    if (newDemoMode) {
-      // Notify user about demo mode
+    if (!demoMode) {
+      // Enabling demo mode
       addMessageToChat({
         sender: 'agent',
-        content: "Demo mode activated. You can now populate the form with sample data and proceed to claim tracking without having to fill out all fields.",
+        content: "Demo mode activated. The form has been pre-filled with sample data for demonstration purposes. You can submit the form to proceed to claim tracking.",
         agentType: 'form-assistant'
       });
       
-      setToastMessage('Demo mode activated');
-      setToastType('info');
-      setShowToast(true);
-    } else {
-      setToastMessage('Demo mode deactivated');
-      setToastType('info');
+      // Pre-fill form with sample data
+      const demoProfile = demoProfiles[Math.floor(Math.random() * demoProfiles.length)];
+      setFormData({
+        policyNumber: claimData?.policyNumber || 'ALZ-1234567',
+        claimantName: claimData?.policyHolder || 'John Smith',
+        dateOfIncident: demoProfile.date,
+        beneficiaryName: demoProfile.name,
+        beneficiaryRelation: demoProfile.relation,
+        beneficiaryPhone: demoProfile.phone,
+        beneficiaryEmail: demoProfile.email,
+        beneficiaryAddress: demoProfile.address,
+        paymentMethod: 'directDeposit',
+        accountType: 'checking',
+        accountNumber: '123456789',
+        routingNumber: '987654321',
+        additionalInfo: 'This is a demo submission for testing purposes.'
+      });
+      
+      // Set all fields as touched
+      const allTouched: Record<string, boolean> = {};
+      Object.keys(formData).forEach(key => {
+        allTouched[key] = true;
+      });
+      setFormTouched(allTouched);
+      
+      // Clear any errors
+      setFormErrors({});
+      
+      // Show success toast
+      setToastMessage('Form auto-filled with demo data');
+      setToastType('success');
       setShowToast(true);
     }
   };
@@ -536,6 +525,7 @@ const ImprovedFillClaimForm: React.FC = () => {
     );
   }
   
+  // In normal mode, check if documents were uploaded
   if (uploadedDocuments.length === 0 && !demoMode) {
     return (
       <div className="flex h-full justify-center items-center p-8">
@@ -545,24 +535,19 @@ const ImprovedFillClaimForm: React.FC = () => {
           <p className="text-yellow-700 mb-4">
             Please upload the required documents before filling out the claim form.
           </p>
-          <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-2">
             <button
               onClick={() => setActiveTab('upload')}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
             >
               Upload Documents
             </button>
-            
-            <div className="flex flex-col items-center">
-              <p className="text-sm text-yellow-700 mb-2">Or enable demo mode to continue without uploading documents</p>
-              <button
-                onClick={toggleDemoMode}
-                className="inline-flex items-center px-4 py-2 border border-yellow-300 text-sm font-medium rounded-md shadow-sm text-yellow-800 bg-yellow-100 hover:bg-yellow-200 focus:outline-none"
-              >
-                <Wand2 className="h-4 w-4 mr-1.5" />
-                Enable Demo Mode
-              </button>
-            </div>
+            <button
+              onClick={() => setDemoMode(true)}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+            >
+              Continue in Demo Mode
+            </button>
           </div>
         </div>
       </div>
@@ -572,20 +557,18 @@ const ImprovedFillClaimForm: React.FC = () => {
   return (
     <div className="h-full overflow-y-auto p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Claim Form</h1>
             <p className="text-gray-600">
               Please complete the form below for your {claimData.claimType.toLowerCase()}.
             </p>
           </div>
-          
-          {/* Demo Mode Toggle */}
           <div className="flex items-center">
             <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
             <button 
+              className="focus:outline-none" 
               onClick={toggleDemoMode}
-              className="focus:outline-none"
               aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
             >
               {demoMode ? (
@@ -597,132 +580,114 @@ const ImprovedFillClaimForm: React.FC = () => {
           </div>
         </div>
         
-        {/* Demo Mode Controls */}
-        {demoMode && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 animate-fade-in">
-            <div className="flex items-start">
-              <Wand2 className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-              <div>
-                <h3 className="text-sm font-medium text-blue-800 mb-1">Demo Mode Activated</h3>
-                <p className="text-sm text-blue-600 mb-2">
-                  Use demo mode to quickly populate the form with sample data and proceed to claim tracking without validation.
-                </p>
-                <button
-                  onClick={populateDemoData}
-                  className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none transition-colors"
-                >
-                  <Wand2 className="mr-1.5 h-4 w-4" />
-                  Auto-Fill with Sample Data
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        
         {formSubmitted ? (
-          <div className="bg-green-50 rounded-lg p-8 text-center animate-fade-in">
-            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+          <div className="bg-green-50 rounded-lg p-8 mb-6 text-center transform transition-all duration-500 ease-in-out">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
+              <CheckCircle className="h-8 w-8 text-green-600" />
             </div>
-            <h3 className="text-lg font-medium text-green-800 mb-2">Claim Form Submitted Successfully</h3>
-            <p className="text-green-700 mb-4">
+            <h3 className="text-xl font-medium text-green-800 mb-3">Claim Form Submitted Successfully</h3>
+            <p className="text-green-700 mb-6 max-w-md mx-auto">
               Your claim has been submitted and is now under review. You can track its status in the next tab.
             </p>
             <button
               onClick={() => setActiveTab('track')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors"
+              className="inline-flex items-center px-5 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors duration-150"
             >
               Track Claim Status
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-5 w-5" />
             </button>
           </div>
         ) : (
           <>
             {/* Form Progress Bar */}
-            <div className="bg-white rounded-lg shadow border border-gray-200 p-4 mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <div className="flex justify-between items-center mb-2">
                 <div className="flex items-center">
-                  <h3 className="text-sm font-medium text-gray-700">Form Completion</h3>
+                  <h3 className="text-base font-medium text-gray-900 flex items-center">
+                    <FileText className="h-5 w-5 text-blue-500 mr-2" />
+                    Form Completion
+                  </h3>
                   {isSaving && (
                     <div className="ml-3 flex items-center text-xs text-blue-600">
                       <div className="animate-pulse mr-1">•</div>
                       Auto-saving...
                     </div>
                   )}
-                  {!isSaving && lastSaved && (
-                    <div className="ml-3 flex items-center text-xs text-gray-500">
-                      <Save className="w-3 h-3 mr-1" />
-                      Last saved at {lastSaved.toLocaleTimeString()}
-                    </div>
-                  )}
                 </div>
-                <span className="text-sm font-medium text-blue-700">{demoMode ? '100' : formProgress}%</span>
+                <span className="text-base font-medium" style={{color: formProgress < 30 ? '#ef4444' : formProgress < 70 ? '#f59e0b' : '#10b981'}}>{formProgress}%</span>
               </div>
-              <div className="relative w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
-                <div className="absolute left-0 h-full bg-gray-200 rounded-full"></div>
+              <div className="w-full bg-gray-200 rounded-full h-2.5 mb-1.5">
                 <div 
-                  className="relative bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out"
-                  style={{ width: `${demoMode ? 100 : formProgress}%` }}
+                  className="h-2.5 rounded-full transition-all duration-500 ease-in-out"
+                  style={{
+                    width: `${formProgress}%`,
+                    backgroundColor: formProgress < 30 ? '#ef4444' : formProgress < 70 ? '#f59e0b' : '#10b981'
+                  }}
                 ></div>
               </div>
-              <div className="flex justify-between mt-1">
-                <p className="text-xs text-gray-500">
-                  {demoMode ? 'Demo mode enabled - all fields validated' : 
-                   formProgress < 100 ? `${100 - formProgress}% remaining` : 'Complete'}
-                </p>
-                <p className="text-xs text-blue-600 font-medium">
-                  {Object.keys(formData).filter(key => Boolean(formData[key as keyof typeof formData])).length} of {Object.keys(formData).length} fields filled
-                </p>
-              </div>
+              <p className="text-xs text-gray-500">
+                {formProgress < 100 ? 'Fill out all required fields to submit your claim' : 'All required fields completed, ready to submit!'}
+              </p>
             </div>
-            
-            <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
-              <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <form className="space-y-7" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                {/* Form Header */}
+                <div className="bg-gray-50 -mx-6 -mt-6 px-6 py-4 border-b border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {claimData.claimType} Claim
+                    </h2>
+                    <div className="text-sm text-gray-500">
+                      Reference: {claimData.policyNumber}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Claim Information</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <User className="h-5 w-5 text-blue-500 mr-2" />
+                      Claim Information
+                    </h3>
                     
                     <div className="space-y-4">
-                      <div
-                        ref={el => fieldRefs.current.policyNumber = el}
-                        className={`transition-all duration-300 ${
-                          validationAnimations.policyNumber ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                        }`}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'policyNumber' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Policy Number
                         </label>
-                        <input
-                          type="text"
-                          name="policyNumber"
-                          value={formData.policyNumber}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
-                          onFocus={handleFocus}
-                          className={`w-full px-3 py-2 border rounded-md transition-colors ${
-                            formTouched.policyNumber && formErrors.policyNumber && !demoMode
-                              ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
-                              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                          } ${currentField === 'policyNumber' ? 'bg-blue-50' : ''}`}
-                        />
-                        {formTouched.policyNumber && formErrors.policyNumber && !demoMode && (
-                          <ValidationIndicator 
-                            isValid={!formErrors.policyNumber} 
-                            message={formErrors.policyNumber} 
+                        <div className={`relative rounded-md shadow-sm ${animateField === 'policyNumber' ? 'animate-shake' : ''}`}>
+                          <input
+                            type="text"
+                            name="policyNumber"
+                            value={formData.policyNumber}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            onFocus={handleFocus}
+                            ref={el => fieldRefs.current.policyNumber = el}
+                            className={`w-full px-3 py-2 border rounded-md ${
+                              formTouched.policyNumber && formErrors.policyNumber 
+                                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                : activeField === 'policyNumber'
+                                ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                                : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
                           />
-                        )}
+                          {formTouched.policyNumber && (
+                            <ValidationIndicator 
+                              isValid={!formErrors.policyNumber} 
+                              message={formErrors.policyNumber} 
+                            />
+                          )}
+                        </div>
                       </div>
                       
-                      <div 
-                        ref={el => fieldRefs.current.claimantName = el}
-                        className={`transition-all duration-300 ${
-                          validationAnimations.claimantName ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                        }`}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'claimantName' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Claimant Name
                         </label>
-                        <div className="relative">
+                        <div className={`relative rounded-md shadow-sm ${animateField === 'claimantName' ? 'animate-shake' : ''}`}>
                           <input
                             type="text"
                             name="claimantName"
@@ -730,35 +695,33 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             onFocus={handleFocus}
-                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.claimantName && formErrors.claimantName && !demoMode
-                                ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                            ref={el => fieldRefs.current.claimantName = el}
+                            className={`w-full px-3 py-2 border rounded-md ${
+                              formTouched.claimantName && formErrors.claimantName 
+                                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                : activeField === 'claimantName'
+                                ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                            } ${currentField === 'claimantName' ? 'bg-blue-50' : ''}`}
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
                           />
-                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                            <User className="h-4 w-4 text-gray-400" />
-                          </div>
+                          {formTouched.claimantName && (
+                            <ValidationIndicator 
+                              isValid={!formErrors.claimantName} 
+                              message={formErrors.claimantName} 
+                            />
+                          )}
                         </div>
-                        {formTouched.claimantName && formErrors.claimantName && !demoMode && (
-                          <ValidationIndicator 
-                            isValid={!formErrors.claimantName} 
-                            message={formErrors.claimantName} 
-                          />
-                        )}
                       </div>
                       
-                      <div
-                        ref={el => fieldRefs.current.dateOfIncident = el}
-                        className={`transition-all duration-300 ${
-                          validationAnimations.dateOfIncident ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                        }`}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'dateOfIncident' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Date of Incident
-                          <span className="text-xs text-gray-500 font-normal ml-1">(Date of death or event)</span>
                         </label>
-                        <div className="relative">
+                        <div className={`relative rounded-md shadow-sm ${animateField === 'dateOfIncident' ? 'animate-shake' : ''}`}>
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                          </div>
                           <input
                             type="date"
                             name="dateOfIncident"
@@ -766,41 +729,43 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             onFocus={handleFocus}
+                            ref={el => fieldRefs.current.dateOfIncident = el}
                             max={dayjs().format('YYYY-MM-DD')}
-                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.dateOfIncident && formErrors.dateOfIncident && !demoMode
-                                ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                            className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                              formTouched.dateOfIncident && formErrors.dateOfIncident 
+                                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                : activeField === 'dateOfIncident'
+                                ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                            } ${currentField === 'dateOfIncident' ? 'bg-blue-50' : ''}`}
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
                           />
-                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                            <CalendarDays className="h-4 w-4 text-gray-400" />
-                          </div>
+                          {formTouched.dateOfIncident && (
+                            <ValidationIndicator 
+                              isValid={!formErrors.dateOfIncident} 
+                              message={formErrors.dateOfIncident} 
+                            />
+                          )}
                         </div>
-                        {formTouched.dateOfIncident && formErrors.dateOfIncident && !demoMode && (
-                          <ValidationIndicator 
-                            isValid={!formErrors.dateOfIncident} 
-                            message={formErrors.dateOfIncident} 
-                          />
-                        )}
                       </div>
                     </div>
                   </div>
                   
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Beneficiary Information</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <AtSign className="h-5 w-5 text-blue-500 mr-2" />
+                      Beneficiary Information
+                    </h3>
                     
                     <div className="space-y-4">
-                      <div
-                        ref={el => fieldRefs.current.beneficiaryName = el}
-                        className={`transition-all duration-300 ${
-                          validationAnimations.beneficiaryName ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                        }`}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'beneficiaryName' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Beneficiary Name
                         </label>
-                        <div className="relative">
+                        <div className={`relative rounded-md shadow-sm ${animateField === 'beneficiaryName' ? 'animate-shake' : ''}`}>
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <User className="h-4 w-4 text-gray-400" />
+                          </div>
                           <input
                             type="text"
                             name="beneficiaryName"
@@ -808,58 +773,62 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             onFocus={handleFocus}
-                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.beneficiaryName && formErrors.beneficiaryName && !demoMode
-                                ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                            ref={el => fieldRefs.current.beneficiaryName = el}
+                            className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                              formTouched.beneficiaryName && formErrors.beneficiaryName 
+                                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                : activeField === 'beneficiaryName'
+                                ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                            } ${currentField === 'beneficiaryName' ? 'bg-blue-50' : ''}`}
-                            placeholder="Full legal name"
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
                           />
-                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                            <Edit3 className="h-4 w-4 text-gray-400" />
-                          </div>
+                          {formTouched.beneficiaryName && (
+                            <ValidationIndicator 
+                              isValid={!formErrors.beneficiaryName} 
+                              message={formErrors.beneficiaryName} 
+                            />
+                          )}
                         </div>
-                        {formTouched.beneficiaryName && formErrors.beneficiaryName && !demoMode && (
-                          <ValidationIndicator 
-                            isValid={!formErrors.beneficiaryName} 
-                            message={formErrors.beneficiaryName} 
-                          />
-                        )}
                       </div>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'beneficiaryRelation' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Relationship to Insured
                         </label>
-                        <select
-                          name="beneficiaryRelation"
-                          value={formData.beneficiaryRelation}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
-                          onFocus={handleFocus}
-                          className={`w-full px-3 py-2 border rounded-md transition-colors ${
-                            currentField === 'beneficiaryRelation' ? 'bg-blue-50 border-blue-300' : 'border-gray-300'
-                          } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                        >
-                          <option value="">Select relationship</option>
-                          <option value="spouse">Spouse</option>
-                          <option value="child">Child</option>
-                          <option value="parent">Parent</option>
-                          <option value="sibling">Sibling</option>
-                          <option value="other">Other</option>
-                        </select>
+                        <div className="relative rounded-md shadow-sm">
+                          <select
+                            name="beneficiaryRelation"
+                            value={formData.beneficiaryRelation}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            onFocus={handleFocus}
+                            ref={el => fieldRefs.current.beneficiaryRelation = el}
+                            className={`w-full px-3 py-2 border rounded-md ${
+                              activeField === 'beneficiaryRelation'
+                              ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
+                          >
+                            <option value="">Select relationship</option>
+                            <option value="spouse">Spouse</option>
+                            <option value="child">Child</option>
+                            <option value="parent">Parent</option>
+                            <option value="sibling">Sibling</option>
+                            <option value="other">Other</option>
+                          </select>
+                        </div>
                       </div>
                       
-                      <div
-                        ref={el => fieldRefs.current.beneficiaryPhone = el}
-                        className={`transition-all duration-300 ${
-                          validationAnimations.beneficiaryPhone ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                        }`}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'beneficiaryPhone' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Phone Number
                         </label>
-                        <div className="relative">
+                        <div className={`relative rounded-md shadow-sm ${animateField === 'beneficiaryPhone' ? 'animate-shake' : ''}`}>
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                          </div>
                           <input
                             type="tel"
                             name="beneficiaryPhone"
@@ -867,38 +836,34 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             onFocus={handleFocus}
-                            placeholder="(123) 456-7890"
-                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.beneficiaryPhone && formErrors.beneficiaryPhone && !demoMode
-                                ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                            ref={el => fieldRefs.current.beneficiaryPhone = el}
+                            placeholder="(XXX) XXX-XXXX"
+                            className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                              formTouched.beneficiaryPhone && formErrors.beneficiaryPhone 
+                                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                : activeField === 'beneficiaryPhone'
+                                ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                            } ${currentField === 'beneficiaryPhone' ? 'bg-blue-50' : ''}`}
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
                           />
-                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                            <Phone className="h-4 w-4 text-gray-400" />
-                          </div>
-                          {formTouched.beneficiaryPhone && !formErrors.beneficiaryPhone && (
-                            <CheckCircle2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-500" />
+                          {formTouched.beneficiaryPhone && (
+                            <ValidationIndicator 
+                              isValid={!formErrors.beneficiaryPhone} 
+                              message={formErrors.beneficiaryPhone} 
+                            />
                           )}
                         </div>
-                        {formTouched.beneficiaryPhone && formErrors.beneficiaryPhone && !demoMode && (
-                          <ValidationIndicator 
-                            isValid={!formErrors.beneficiaryPhone} 
-                            message={formErrors.beneficiaryPhone} 
-                          />
-                        )}
                       </div>
                       
-                      <div
-                        ref={el => fieldRefs.current.beneficiaryEmail = el}
-                        className={`transition-all duration-300 ${
-                          validationAnimations.beneficiaryEmail ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                        }`}
-                      >
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'beneficiaryEmail' ? 'text-blue-700' : 'text-gray-700'}`}>
                           Email Address
                         </label>
-                        <div className="relative">
+                        <div className={`relative rounded-md shadow-sm ${animateField === 'beneficiaryEmail' ? 'animate-shake' : ''}`}>
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Mail className="h-4 w-4 text-gray-400" />
+                          </div>
                           <input
                             type="email"
                             name="beneficiaryEmail"
@@ -906,203 +871,244 @@ const ImprovedFillClaimForm: React.FC = () => {
                             onChange={handleChange}
                             onBlur={handleBlur}
                             onFocus={handleFocus}
-                            placeholder="email@example.com"
-                            className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                              formTouched.beneficiaryEmail && formErrors.beneficiaryEmail && !demoMode
-                                ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                            ref={el => fieldRefs.current.beneficiaryEmail = el}
+                            className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                              formTouched.beneficiaryEmail && formErrors.beneficiaryEmail 
+                                ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                : activeField === 'beneficiaryEmail'
+                                ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
                                 : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                            } ${currentField === 'beneficiaryEmail' ? 'bg-blue-50' : ''}`}
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
                           />
-                          <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                            <Mail className="h-4 w-4 text-gray-400" />
-                          </div>
-                          {formTouched.beneficiaryEmail && !formErrors.beneficiaryEmail && (
-                            <CheckCircle2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-500" />
+                          {formTouched.beneficiaryEmail && (
+                            <ValidationIndicator 
+                              isValid={!formErrors.beneficiaryEmail} 
+                              message={formErrors.beneficiaryEmail} 
+                            />
                           )}
                         </div>
-                        {formTouched.beneficiaryEmail && formErrors.beneficiaryEmail && !demoMode && (
-                          <ValidationIndicator 
-                            isValid={!formErrors.beneficiaryEmail} 
-                            message={formErrors.beneficiaryEmail} 
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-sm font-medium mb-1 ${activeField === 'beneficiaryAddress' ? 'text-blue-700' : 'text-gray-700'}`}>
+                          Address (Optional)
+                        </label>
+                        <div className="relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Home className="h-4 w-4 text-gray-400" />
+                          </div>
+                          <input
+                            type="text"
+                            name="beneficiaryAddress"
+                            value={formData.beneficiaryAddress}
+                            onChange={handleChange}
+                            onBlur={handleBlur}
+                            onFocus={handleFocus}
+                            ref={el => fieldRefs.current.beneficiaryAddress = el}
+                            className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                              activeField === 'beneficiaryAddress'
+                              ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                            } transition-colors duration-200`}
+                            disabled={formSubmitted || isSubmitting}
+                            placeholder="Street, City, State, ZIP"
                           />
-                        )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Payment Information</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <DollarSign className="h-5 w-5 text-blue-500 mr-2" />
+                    Payment Information
+                  </h3>
                   
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Payment Method
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div 
-                          className={`border rounded-lg p-4 cursor-pointer transition-all duration-300 ${
+                  <div className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div 
+                        className={`border rounded-lg p-4 transition-all duration-200 ${
+                          formData.paymentMethod === 'directDeposit'
+                            ? 'border-blue-300 bg-blue-50 shadow-sm'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                        } cursor-pointer`}
+                        onClick={() => {
+                          if (!isSubmitting && !formSubmitted) {
+                            setFormData({...formData, paymentMethod: 'directDeposit'});
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                             formData.paymentMethod === 'directDeposit'
-                              ? 'border-blue-500 bg-blue-50 shadow-sm'
-                              : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
-                          }`}
-                          onClick={() => setFormData({...formData, paymentMethod: 'directDeposit'})}
-                        >
-                          <div className="flex items-center">
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                              formData.paymentMethod === 'directDeposit'
-                                ? 'border-blue-500'
-                                : 'border-gray-400'
-                            }`}>
-                              {formData.paymentMethod === 'directDeposit' && (
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                              )}
-                            </div>
-                            <span className="ml-2 text-sm">Direct Deposit</span>
+                              ? 'border-blue-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {formData.paymentMethod === 'directDeposit' && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                            )}
                           </div>
-                          <div className="mt-2 flex items-center text-xs text-gray-500">
-                            <DollarSign className="h-3 w-3 mr-1 flex-shrink-0" />
-                            <span>Faster processing (1-3 business days)</span>
+                          <div className="ml-3">
+                            <p className="text-base font-medium text-gray-900">Direct Deposit</p>
+                            <p className="text-sm text-gray-500">Funds available in 1-3 business days</p>
                           </div>
                         </div>
-                        <div 
-                          className={`border rounded-lg p-4 cursor-pointer transition-all duration-300 ${
+                      </div>
+                      
+                      <div 
+                        className={`border rounded-lg p-4 transition-all duration-200 ${
+                          formData.paymentMethod === 'check'
+                            ? 'border-blue-300 bg-blue-50 shadow-sm'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                        } cursor-pointer`}
+                        onClick={() => {
+                          if (!isSubmitting && !formSubmitted) {
+                            setFormData({...formData, paymentMethod: 'check'});
+                          }
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                             formData.paymentMethod === 'check'
-                              ? 'border-blue-500 bg-blue-50 shadow-sm'
-                              : 'border-gray-300 hover:border-blue-300 hover:bg-gray-50'
-                          }`}
-                          onClick={() => setFormData({...formData, paymentMethod: 'check'})}
-                        >
-                          <div className="flex items-center">
-                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                              formData.paymentMethod === 'check'
-                                ? 'border-blue-500'
-                                : 'border-gray-400'
-                            }`}>
-                              {formData.paymentMethod === 'check' && (
-                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                              )}
-                            </div>
-                            <span className="ml-2 text-sm">Check</span>
+                              ? 'border-blue-500'
+                              : 'border-gray-300'
+                          }`}>
+                            {formData.paymentMethod === 'check' && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                            )}
                           </div>
-                          <div className="mt-2 flex items-center text-xs text-gray-500">
-                            <Mail className="h-3 w-3 mr-1 flex-shrink-0" />
-                            <span>Mailed to address on file (7-10 days)</span>
+                          <div className="ml-3">
+                            <p className="text-base font-medium text-gray-900">Check</p>
+                            <p className="text-sm text-gray-500">Mailed within 5-7 business days</p>
                           </div>
                         </div>
                       </div>
                     </div>
                     
                     {formData.paymentMethod === 'directDeposit' && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Account Type
-                          </label>
-                          <div className="relative">
-                            <select
-                              name="accountType"
-                              value={formData.accountType}
-                              onChange={handleChange}
-                              onBlur={handleBlur}
-                              onFocus={handleFocus}
-                              className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                                currentField === 'accountType' ? 'bg-blue-50 border-blue-300' : 'border-gray-300'
-                              } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                            >
-                              <option value="checking">Checking</option>
-                              <option value="savings">Savings</option>
-                            </select>
-                            <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                              <CreditCard className="h-4 w-4 text-gray-400" />
-                            </div>
-                          </div>
-                        </div>
-                        <div
-                          ref={el => fieldRefs.current.accountNumber = el}
-                          className={`transition-all duration-300 ${
-                            validationAnimations.accountNumber ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                          }`}
-                        >
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Account Number
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              name="accountNumber"
-                              value={formData.accountNumber}
-                              onChange={handleChange}
-                              onBlur={handleBlur}
-                              onFocus={handleFocus}
-                              placeholder="Enter account number"
-                              className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                                formTouched.accountNumber && formErrors.accountNumber && !demoMode
-                                  ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
+                      <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center">
+                          <CreditCard className="h-4 w-4 mr-1.5" />
+                          Bank Account Details
+                        </h4>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className={`block text-sm font-medium mb-1 ${activeField === 'accountType' ? 'text-blue-700' : 'text-gray-700'}`}>
+                              Account Type
+                            </label>
+                            <div className="relative rounded-md shadow-sm">
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <Building className="h-4 w-4 text-gray-400" />
+                              </div>
+                              <select
+                                name="accountType"
+                                value={formData.accountType}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                onFocus={handleFocus}
+                                ref={el => fieldRefs.current.accountType = el}
+                                className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                                  activeField === 'accountType'
+                                  ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
                                   : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                              } ${currentField === 'accountNumber' ? 'bg-blue-50' : ''}`}
-                            />
-                            <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                              <DollarSign className="h-4 w-4 text-gray-400" />
+                                } transition-colors duration-200`}
+                                disabled={formSubmitted || isSubmitting}
+                              >
+                                <option value="checking">Checking</option>
+                                <option value="savings">Savings</option>
+                              </select>
                             </div>
                           </div>
-                          {formTouched.accountNumber && formErrors.accountNumber && !demoMode && (
-                            <ValidationIndicator 
-                              isValid={!formErrors.accountNumber} 
-                              message={formErrors.accountNumber} 
-                            />
-                          )}
-                        </div>
-                        <div
-                          ref={el => fieldRefs.current.routingNumber = el}
-                          className={`transition-all duration-300 ${
-                            validationAnimations.routingNumber ? 'animate-bounce-once border-l-4 border-red-500 pl-3' : 'pl-0'
-                          }`}
-                        >
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Routing Number
-                            <span className="text-xs text-gray-500 font-normal ml-1">(9 digits)</span>
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              name="routingNumber"
-                              value={formData.routingNumber}
-                              onChange={handleChange}
-                              onBlur={handleBlur}
-                              onFocus={handleFocus}
-                              placeholder="Enter 9-digit routing number"
-                              className={`w-full px-3 py-2 pl-9 border rounded-md transition-colors ${
-                                formTouched.routingNumber && formErrors.routingNumber && !demoMode
-                                  ? 'border-red-300 bg-red-50 focus:ring-red-500 focus:border-red-500' 
-                                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                              } ${currentField === 'routingNumber' ? 'bg-blue-50' : ''}`}
-                              maxLength={9}
-                            />
-                            <div className="absolute left-0 top-0 h-full flex items-center pl-3">
-                              <FileText className="h-4 w-4 text-gray-400" />
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-1 ${activeField === 'routingNumber' ? 'text-blue-700' : 'text-gray-700'}`}>
+                              Routing Number
+                            </label>
+                            <div className={`relative rounded-md shadow-sm ${animateField === 'routingNumber' ? 'animate-shake' : ''}`}>
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <CreditCard className="h-4 w-4 text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                name="routingNumber"
+                                value={formData.routingNumber}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                onFocus={handleFocus}
+                                ref={el => fieldRefs.current.routingNumber = el}
+                                className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                                  formTouched.routingNumber && formErrors.routingNumber 
+                                    ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                    : activeField === 'routingNumber'
+                                    ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                                } transition-colors duration-200`}
+                                placeholder="9 digits"
+                                maxLength={9}
+                                disabled={formSubmitted || isSubmitting}
+                              />
+                              {formTouched.routingNumber && (
+                                <ValidationIndicator 
+                                  isValid={!formErrors.routingNumber} 
+                                  message={formErrors.routingNumber} 
+                                />
+                              )}
                             </div>
                           </div>
-                          {formTouched.routingNumber && formErrors.routingNumber && !demoMode && (
-                            <ValidationIndicator 
-                              isValid={!formErrors.routingNumber} 
-                              message={formErrors.routingNumber} 
-                            />
-                          )}
-                          <p className="mt-1 text-xs text-gray-500">
-                            The 9-digit routing number can be found on the bottom left of your check.
-                          </p>
+                          
+                          <div>
+                            <label className={`block text-sm font-medium mb-1 ${activeField === 'accountNumber' ? 'text-blue-700' : 'text-gray-700'}`}>
+                              Account Number
+                            </label>
+                            <div className={`relative rounded-md shadow-sm ${animateField === 'accountNumber' ? 'animate-shake' : ''}`}>
+                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <CreditCard className="h-4 w-4 text-gray-400" />
+                              </div>
+                              <input
+                                type="text"
+                                name="accountNumber"
+                                value={formData.accountNumber}
+                                onChange={handleChange}
+                                onBlur={handleBlur}
+                                onFocus={handleFocus}
+                                ref={el => fieldRefs.current.accountNumber = el}
+                                className={`w-full pl-10 pr-4 py-2 border rounded-md ${
+                                  formTouched.accountNumber && formErrors.accountNumber 
+                                    ? 'border-red-300 text-red-900 focus:ring-red-500 focus:border-red-500 bg-red-50' 
+                                    : activeField === 'accountNumber'
+                                    ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                                } transition-colors duration-200`}
+                                disabled={formSubmitted || isSubmitting}
+                              />
+                              {formTouched.accountNumber && (
+                                <ValidationIndicator 
+                                  isValid={!formErrors.accountNumber} 
+                                  message={formErrors.accountNumber} 
+                                />
+                              )}
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">
+                              For security, your account number will be masked after entry.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
                     
                     {formData.paymentMethod === 'check' && (
-                      <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
                         <div className="flex items-start">
-                          <Info className="h-4 w-4 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
-                          <p className="text-sm text-blue-700">
-                            Payment by check will be mailed to the address on file. Please ensure your address is current. Delivery typically takes 7-10 business days after claim approval.
-                          </p>
+                          <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-2 flex-shrink-0" />
+                          <div>
+                            <h4 className="text-sm font-medium text-blue-800 mb-1">Check Payment Information</h4>
+                            <p className="text-sm text-blue-600">
+                              Your check will be mailed to the address we have on file. Delivery typically takes 7-10 business days after claim approval.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1110,29 +1116,35 @@ const ImprovedFillClaimForm: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Additional Information
+                  <label className={`block text-sm font-medium mb-1 ${activeField === 'additionalInfo' ? 'text-blue-700' : 'text-gray-700'}`}>
+                    Additional Information (Optional)
                   </label>
-                  <textarea
-                    name="additionalInfo"
-                    rows={4}
-                    value={formData.additionalInfo}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    onFocus={handleFocus}
-                    placeholder="Please provide any additional information that may help us process your claim..."
-                    className={`w-full px-3 py-2 border rounded-md transition-colors ${
-                      currentField === 'additionalInfo' ? 'bg-blue-50 border-blue-300' : 'border-gray-300'
-                    } focus:outline-none focus:ring-blue-500 focus:border-blue-500`}
-                  ></textarea>
+                  <div className="relative rounded-md shadow-sm">
+                    <textarea
+                      name="additionalInfo"
+                      rows={4}
+                      value={formData.additionalInfo}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      onFocus={handleFocus}
+                      ref={el => fieldRefs.current.additionalInfo = el}
+                      placeholder="Please provide any additional information that may help us process your claim..."
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        activeField === 'additionalInfo'
+                        ? 'border-blue-300 focus:ring-blue-500 focus:border-blue-500 bg-blue-50'
+                        : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                      } transition-colors duration-200`}
+                      disabled={formSubmitted || isSubmitting}
+                    ></textarea>
+                  </div>
                 </div>
                 
                 <div className="bg-blue-50 p-4 rounded-lg flex items-start">
-                  <Info className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <Shield className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
                   <div>
-                    <h3 className="text-sm font-medium text-blue-800 mb-1">Claim Processing Information</h3>
-                    <p className="text-sm text-blue-600">
-                      Once submitted, your claim will be reviewed by our claims department. This process typically takes 7-10 business days. You will receive updates via email and can check the status of your claim at any time.
+                    <h3 className="text-sm font-medium text-blue-800 mb-1">Important Information</h3>
+                    <p className="text-sm text-blue-700 leading-relaxed">
+                      By submitting this form, you certify that all information provided is true and correct to the best of your knowledge. False statements may lead to denial of your claim and potential legal action. For questions about your claim, please contact our support team.
                     </p>
                   </div>
                 </div>
@@ -1141,8 +1153,9 @@ const ImprovedFillClaimForm: React.FC = () => {
                   <div className="flex items-center space-x-4">
                     <button
                       type="button"
-                      className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors"
+                      className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                       onClick={() => setActiveTab('upload')}
+                      disabled={formSubmitted || isSubmitting}
                     >
                       Back to Documents
                     </button>
@@ -1151,57 +1164,83 @@ const ImprovedFillClaimForm: React.FC = () => {
                       type="button"
                       onClick={generatePdf}
                       className="inline-flex items-center px-3 py-2 border border-transparent text-sm text-blue-700 font-medium rounded-md hover:bg-blue-50 transition-colors"
+                      disabled={formSubmitted || isSubmitting}
                     >
-                      <Download className="h-5 w-5 mr-1" />
+                      <Download className="h-4 w-4 mr-1.5" />
                       Download Form
                     </button>
                   </div>
                   
-                  <button
-                    type="submit"
-                    disabled={isSaving || (formProgress < 100 && !demoMode)}
-                    className={`flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors ${
-                      isSaving
-                        ? 'bg-blue-400 cursor-wait'
-                        : formProgress < 100 && !demoMode
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                  >
-                    {isSaving ? (
-                      <>
-                        <span className="animate-pulse mr-2">•</span>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="mr-2 h-4 w-4" />
-                        {demoMode ? "Submit Demo Claim" : "Submit Claim"}
-                      </>
-                    )}
-                  </button>
+                  {demoMode && (
+                    <div className="flex items-center">
+                      <button
+                        type="submit"
+                        className="inline-flex items-center px-5 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none transition-colors relative overflow-hidden"
+                        disabled={isSubmitting}
+                      >
+                        <span className="flex items-center">
+                          {isSubmitting ? (
+                            <>
+                              <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                              Processing...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="mr-2 h-4 w-4" />
+                              Submit Demo Claim
+                            </>
+                          )}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {!demoMode && (
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || formProgress < 100}
+                      className={`inline-flex items-center px-5 py-2.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white transition-colors relative ${
+                        isSubmitting
+                          ? 'bg-blue-400 cursor-wait'
+                          : formProgress < 100
+                          ? 'bg-gray-400 cursor-not-allowed'
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Submit Claim
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
+            
+            {/* Demo Mode Callout */}
+            {demoMode && (
+              <div className="bg-amber-50 rounded-lg p-4 mb-6 border border-amber-200">
+                <div className="flex items-start">
+                  <Info className="h-5 w-5 text-amber-500 mt-0.5 mr-3 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-medium text-amber-800 mb-1">Demo Mode Active</h3>
+                    <p className="text-sm text-amber-700">
+                      Form has been pre-filled with sample data. You can submit the form to proceed to claim tracking without validation.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
-      
-      {/* Email Preview Modal */}
-      {showEmailPreview && (
-        <div className="fixed inset-0 z-50 bg-gray-500 bg-opacity-75 flex items-center justify-center">
-          <div className="w-full max-w-3xl p-4">
-            <EmailTemplate
-              templateType="submission"
-              recipientName={formData.beneficiaryName || formData.claimantName}
-              policyNumber={formData.policyNumber}
-              claimType={claimData.claimType}
-              onSend={handleEmailConfirmation}
-              onClose={() => setShowEmailPreview(false)}
-            />
-          </div>
-        </div>
-      )}
       
       {/* Toast notifications */}
       {showToast && (
@@ -1211,16 +1250,6 @@ const ImprovedFillClaimForm: React.FC = () => {
           onClose={() => setShowToast(false)}
         />
       )}
-      
-      <style jsx>{`
-        @keyframes bounce-once {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(10px); }
-        }
-        .animate-bounce-once {
-          animation: bounce-once 0.5s ease-in-out;
-        }
-      `}</style>
     </div>
   );
 };
