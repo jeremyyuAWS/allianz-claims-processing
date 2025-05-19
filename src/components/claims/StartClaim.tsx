@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Info, ArrowRight, FileText } from 'lucide-react';
+import { Info, ArrowRight, FileText, HelpCircle } from 'lucide-react';
+import claimTypesData from '../../data/claim_types.json';
 
 const StartClaim: React.FC = () => {
-  const { claimTypes, setClaimData, setActiveTab, addMessageToChat, user } = useAppContext();
+  const { setClaimData, setActiveTab, addMessageToChat, user } = useAppContext();
   const [selectedClaimType, setSelectedClaimType] = useState<string | null>(null);
   const [claimReason, setClaimReason] = useState<string>('');
   const [showGuide, setShowGuide] = useState(true);
-
+  const [showRequiredDocs, setShowRequiredDocs] = useState<boolean>(false);
+  const [claimTypeDetail, setClaimTypeDetail] = useState<any>(null);
+  
   useEffect(() => {
     // Welcome message for this tab
     setTimeout(() => {
@@ -22,22 +25,34 @@ const StartClaim: React.FC = () => {
   const handleClaimTypeSelection = (claimTypeId: string) => {
     setSelectedClaimType(claimTypeId);
     
-    // Find the claim type details
-    const claimType = claimTypes.find(type => type.id === claimTypeId);
+    // Find the claim type details from our JSON data
+    const claimType = claimTypesData.find(type => type.id === claimTypeId);
     
     if (claimType) {
+      // Store detailed information about the claim type
+      setClaimTypeDetail(claimType);
+      
       // Add message to chat about selection
       addMessageToChat({
         sender: 'user',
         content: `I'd like to file a ${claimType.name.toLowerCase()}.`
       });
+      
+      // Simulate agent response with specific guidance based on claim type
+      setTimeout(() => {
+        addMessageToChat({
+          sender: 'agent',
+          content: `Thank you for selecting a ${claimType.name}. Please provide a brief description of the reason for your claim. Then I'll guide you through the required documentation, which includes ${claimType.requiredDocuments.join(", ")}.`,
+          agentType: 'claims-assistant'
+        });
+      }, 1000);
     }
   };
 
   const handleSubmit = () => {
     if (!selectedClaimType || !claimReason.trim()) return;
     
-    const claimType = claimTypes.find(type => type.id === selectedClaimType);
+    const claimType = claimTypesData.find(type => type.id === selectedClaimType);
     
     if (claimType) {
       setClaimData({
@@ -53,9 +68,16 @@ const StartClaim: React.FC = () => {
         sender: 'user',
         content: `The reason for my claim is: ${claimReason}`
       });
-
-      // Simulate next steps
+      
+      // Simulate agent response about next steps with specific details
       setTimeout(() => {
+        addMessageToChat({
+          sender: 'agent',
+          content: `Thank you for providing the details. I've recorded that you're filing a ${claimType.name} for the following reason: "${claimReason}". Now let's proceed to document upload, where you'll need to provide ${claimType.requiredDocuments.join(", ")}. The typical processing time for this type of claim is ${claimType.processingTime}.`,
+          agentType: 'claims-assistant'
+        });
+        
+        // Navigate to document upload tab
         setActiveTab('upload');
       }, 1500);
     }
@@ -92,7 +114,38 @@ const StartClaim: React.FC = () => {
         )}
         
         <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Policy Information</h2>
+          <div className="flex justify-between items-start mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">Policy Information</h2>
+            <button
+              className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+              onClick={() => setShowRequiredDocs(!showRequiredDocs)}
+            >
+              <HelpCircle className="h-4 w-4 mr-1" />
+              {showRequiredDocs ? "Hide Documents Info" : "View Required Documents"}
+            </button>
+          </div>
+          
+          {showRequiredDocs && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-6">
+              <h3 className="text-md font-medium text-gray-800 mb-3">Required Documents by Claim Type</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {claimTypesData.map((type) => (
+                  <div key={type.id} className="p-3 border border-gray-200 rounded-lg bg-white">
+                    <h4 className="font-medium text-blue-700 mb-2">{type.name}</h4>
+                    <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
+                      {type.requiredDocuments.map((doc, index) => (
+                        <li key={index}>{doc}</li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Processing time: {type.processingTime}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Policy Number</label>
@@ -116,7 +169,7 @@ const StartClaim: React.FC = () => {
           
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Claim Type</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {claimTypes.map((type) => (
+            {claimTypesData.map((type) => (
               <div 
                 key={type.id}
                 className={`border rounded-lg p-4 cursor-pointer transition-all ${
@@ -127,8 +180,8 @@ const StartClaim: React.FC = () => {
                 onClick={() => handleClaimTypeSelection(type.id)}
               >
                 <div className="flex items-start">
-                  <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 mr-3 
-                    ${selectedClaimType === type.id ? 'border-blue-500' : 'border-gray-300'}"
+                  <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 mr-3 ${
+                    selectedClaimType === type.id ? 'border-blue-500' : 'border-gray-300'}`}
                   >
                     {selectedClaimType === type.id && (
                       <div className="w-2.5 h-2.5 rounded-full bg-blue-600"></div>
@@ -137,11 +190,28 @@ const StartClaim: React.FC = () => {
                   <div>
                     <h3 className="text-md font-medium">{type.name}</h3>
                     <p className="text-sm text-gray-500 mt-1">{type.description}</p>
+                    {selectedClaimType === type.id && (
+                      <p className="text-xs text-blue-600 mt-2">Processing time: {type.processingTime}</p>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
+          
+          {selectedClaimType && claimTypeDetail && (
+            <div className="bg-blue-50 p-4 rounded-lg mb-6">
+              <h3 className="text-md font-medium text-blue-800 mb-2">Required Documents</h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-blue-700">
+                {claimTypeDetail.requiredDocuments.map((doc: string, index: number) => (
+                  <li key={index}>{doc}</li>
+                ))}
+              </ul>
+              <p className="text-sm text-blue-600 mt-2">
+                You'll be able to upload these documents in the next step.
+              </p>
+            </div>
+          )}
           
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">

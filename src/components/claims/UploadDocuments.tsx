@@ -1,88 +1,150 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { useAppContext } from '../../context/AppContext';
-import { Upload, File, CheckCircle, AlertTriangle, Info, XCircle, ArrowRight } from 'lucide-react';
+import { Upload, File, CheckCircle, AlertTriangle, Info, XCircle, ArrowRight, Eye } from 'lucide-react';
 import { Document, DocumentType } from '../../types';
+import claimTypesData from '../../data/claim_types.json';
 
 const UploadDocuments: React.FC = () => {
-  const { claimData, activeTab, setActiveTab, addMessageToChat, uploadedDocuments, setUploadedDocuments } = useAppContext();
+  const { claimData, activeTab, setActiveTab, addMessageToChat, uploadedDocuments, setUploadedDocuments, documents, setDocuments } = useAppContext();
   
-  const [documents, setDocuments] = useState<Document[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Claim Form');
+  const [requiredDocuments, setRequiredDocuments] = useState<string[]>([]);
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   
-  // Determine required documents based on claim type
-  const getRequiredDocuments = (): DocumentType[] => {
-    if (!claimData) return [];
-    
-    switch (claimData.policyType) {
-      case 'life':
-        return ['Death Certificate', 'Claim Form', 'ID Proof'];
-      case 'ltc':
-        return ['Medical Records', 'Claim Form', 'ID Proof'];
-      case 'annuity':
-        return ['Claim Form', 'ID Proof'];
-      case 'disability':
-        return ['Medical Records', 'Claim Form', 'ID Proof'];
-      default:
-        return ['Claim Form', 'ID Proof'];
+  useEffect(() => {
+    // Determine required documents based on claim type
+    if (claimData) {
+      const claimTypeInfo = claimTypesData.find(type => type.id === claimData.policyType);
+      if (claimTypeInfo) {
+        setRequiredDocuments(claimTypeInfo.requiredDocuments);
+        // Set first required document as default selection
+        if (claimTypeInfo.requiredDocuments.length > 0) {
+          setSelectedDocType(claimTypeInfo.requiredDocuments[0] as DocumentType);
+        }
+        
+        // Add welcome message when first visiting this tab
+        if (activeTab === 'upload' && documents.length === 0) {
+          setTimeout(() => {
+            addMessageToChat({
+              sender: 'agent',
+              content: `For your ${claimData.claimType}, please upload the following documents: ${claimTypeInfo.requiredDocuments.join(", ")}. Make sure each document is clear and complete.`,
+              agentType: 'document-assistant'
+            });
+          }, 500);
+        }
+      }
     }
-  };
-  
-  const requiredDocuments = getRequiredDocuments();
+  }, [claimData, activeTab, documents.length, addMessageToChat]);
   
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     
     // Process each file
-    acceptedFiles.forEach(file => {
-      const newDoc: Document = {
+    const newDocuments = acceptedFiles.map(file => {
+      // Create an object URL for preview
+      const fileUrl = URL.createObjectURL(file);
+      
+      return {
         id: `doc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         name: file.name,
         type: selectedDocType,
         uploadDate: new Date(),
         size: file.size,
-        status: 'Uploaded'
+        status: 'Uploaded',
+        fileUrl
       };
-      
-      setDocuments(prev => [...prev, newDoc]);
-      setUploadedDocuments(prev => [...prev, file.name]);
     });
+    
+    setDocuments(prev => [...prev, ...newDocuments]);
+    setUploadedDocuments(prev => [...prev, ...acceptedFiles.map(file => file.name)]);
     
     // Simulate response from agent
     addMessageToChat({
       sender: 'user',
-      content: `I've uploaded a ${selectedDocType.toLowerCase()}: ${acceptedFiles[0].name}`
+      content: `I've uploaded ${acceptedFiles.length > 1 ? 'documents' : 'a document'} for ${selectedDocType}`
     });
     
-  }, [selectedDocType, addMessageToChat, setUploadedDocuments]);
-
-  const handleDragEnter = () => setIsDragActive(true);
-  const handleDragLeave = () => setIsDragActive(false);
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragActive(true);
-  };
-  
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragActive(false);
+    // Simulate agent feedback based on document type
+    setTimeout(() => {
+      const uploadResponse = getUploadResponse(selectedDocType, acceptedFiles.length);
+      
+      addMessageToChat({
+        sender: 'agent',
+        content: uploadResponse,
+        agentType: 'document-assistant'
+      });
+      
+      // Check if all required docs are uploaded and provide guidance
+      const uploadedTypes = [...documents, ...newDocuments].map(d => d.type);
+      const uniqueUploadedTypes = [...new Set(uploadedTypes)];
+      const allRequiredUploaded = requiredDocuments.every(doc => 
+        uniqueUploadedTypes.includes(doc as DocumentType)
+      );
+      
+      if (allRequiredUploaded) {
+        setTimeout(() => {
+          addMessageToChat({
+            sender: 'agent',
+            content: "Great job! You've uploaded all the required documents. You can proceed to fill out the claim form when you're ready.",
+            agentType: 'document-assistant'
+          });
+        }, 1500);
+      }
+    }, 1000);
     
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      onDrop(Array.from(e.dataTransfer.files));
-    }
-  };
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      onDrop(Array.from(e.target.files));
+  }, [selectedDocType, documents, addMessageToChat, setUploadedDocuments, requiredDocuments, setDocuments]);
+
+  // Configure react-dropzone
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png']
+    },
+    maxSize: 10485760, // 10MB
+    onDragEnter: () => setIsDragActive(true),
+    onDragLeave: () => setIsDragActive(false)
+  });
+
+  // Generate contextual response based on document type
+  const getUploadResponse = (docType: string, count: number): string => {
+    const plural = count > 1 ? 's' : '';
+    
+    switch(docType) {
+      case 'Death Certificate':
+        return `I've received the death certificate${plural}. ${count > 1 ? 'These documents are' : 'This is a'} critical document for processing death claims. Please ensure ${count > 1 ? 'they are' : 'it\'s a'} certified cop${count > 1 ? 'ies' : 'y'} issued by the vital records office.`;
+      case 'Claim Form':
+        return `Thank you for uploading the claim form${plural}. I'll check to make sure all required fields are completed. If there are any issues, I'll let you know.`;
+      case 'ID Proof':
+        return `I've received your identification document${plural}. A clear government-issued photo ID is required to verify the claimant's identity.`;
+      case 'Medical Records':
+        return `Thank you for uploading the medical record${plural}. ${count > 1 ? 'These are' : 'This is'} essential for evaluating health-related claims. Please ensure ${count > 1 ? 'they\'re' : 'it\'s'} complete and include${count > 1 ? '' : 's'} the relevant diagnosis and treatment information.`;
+      case 'Power of Attorney':
+        return `I've received the Power of Attorney document${plural}. This authorizes you to act on behalf of the policy owner. Our legal team will review ${count > 1 ? 'these documents' : 'this document'}.`;
+      default:
+        return `Thank you for uploading ${count > 1 ? 'the documents' : 'the document'} for ${docType.toLowerCase()}. ${count > 1 ? 'These have' : 'This has'} been added to your claim file.`;
     }
   };
   
   const handleRemoveDocument = (docId: string) => {
     const docToRemove = documents.find(doc => doc.id === docId);
     if (docToRemove) {
+      // Revoke object URL to prevent memory leaks
+      if (docToRemove.fileUrl) {
+        URL.revokeObjectURL(docToRemove.fileUrl);
+      }
+      
       setDocuments(documents.filter(doc => doc.id !== docId));
       setUploadedDocuments(prev => prev.filter(name => name !== docToRemove.name));
+      
+      // Add message about document removal
+      addMessageToChat({
+        sender: 'user',
+        content: `I've removed the document: ${docToRemove.name}`
+      });
     }
   };
   
@@ -90,13 +152,32 @@ const UploadDocuments: React.FC = () => {
     setDocuments(documents.map(doc => 
       doc.id === docId ? { ...doc, status: 'Verified' } : doc
     ));
+    
+    const docToVerify = documents.find(doc => doc.id === docId);
+    if (docToVerify) {
+      // Add verification message
+      addMessageToChat({
+        sender: 'agent',
+        content: `I've verified the ${docToVerify.type.toLowerCase()}: ${docToVerify.name}. The document meets our requirements and has been accepted.`,
+        agentType: 'document-assistant'
+      });
+    }
+  };
+  
+  const handlePreview = (doc: Document) => {
+    setPreviewDocument(doc);
+  };
+  
+  const closePreview = () => {
+    setPreviewDocument(null);
   };
   
   const handleContinue = () => {
     // Check if all required documents are uploaded
     const uploadedTypes = documents.map(doc => doc.type);
+    const uniqueUploadedTypes = [...new Set(uploadedTypes)];
     const allRequiredUploaded = requiredDocuments.every(type => 
-      uploadedTypes.includes(type)
+      uniqueUploadedTypes.includes(type as DocumentType)
     );
     
     if (allRequiredUploaded) {
@@ -112,9 +193,10 @@ const UploadDocuments: React.FC = () => {
       }, 1500);
     } else {
       // Alert the user about missing documents
+      const missingDocs = requiredDocuments.filter(doc => !uniqueUploadedTypes.includes(doc as DocumentType));
       addMessageToChat({
         sender: 'agent',
-        content: "It appears some required documents are still missing. Please upload all required documents before proceeding.",
+        content: `Some required documents are still missing. Please upload the following: ${missingDocs.join(", ")} before proceeding.`,
         agentType: 'document-assistant'
       });
     }
@@ -159,16 +241,19 @@ const UploadDocuments: React.FC = () => {
           <div>
             <h3 className="text-sm font-medium text-blue-800 mb-1">Required Documents</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {requiredDocuments.map((doc, index) => (
-                <div key={index} className="flex items-center">
-                  <div className={`w-1.5 h-1.5 rounded-full ${
-                    documents.some(d => d.type === doc) 
-                      ? 'bg-green-500' 
-                      : 'bg-gray-400'
-                  } mr-2`}></div>
-                  <span className="text-sm text-blue-700">{doc}</span>
-                </div>
-              ))}
+              {requiredDocuments.map((doc, index) => {
+                const isUploaded = documents.some(d => d.type === doc);
+                return (
+                  <div key={index} className="flex items-center">
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      isUploaded
+                        ? 'bg-green-500' 
+                        : 'bg-gray-400'
+                    } mr-2`}></div>
+                    <span className={`text-sm ${isUploaded ? 'text-green-700' : 'text-blue-700'}`}>{doc}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -186,23 +271,27 @@ const UploadDocuments: React.FC = () => {
               onChange={(e) => setSelectedDocType(e.target.value as DocumentType)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
             >
-              {['Death Certificate', 'Claim Form', 'ID Proof', 'Medical Records', 'Power of Attorney', 'Other'].map(type => (
+              {requiredDocuments.map(type => (
                 <option key={type} value={type}>{type}</option>
               ))}
+              <option value="Other">Other</option>
             </select>
+            <p className="mt-1 text-xs text-gray-500">
+              {selectedDocType === 'Death Certificate' && 'Please upload a certified copy of the death certificate'}
+              {selectedDocType === 'ID Proof' && 'Please provide a government-issued photo ID'}
+              {selectedDocType === 'Medical Records' && 'Include relevant diagnosis and treatment information'}
+            </p>
           </div>
           
           <div 
+            {...getRootProps()} 
             className={`border-2 border-dashed rounded-lg p-6 text-center ${
               isDragActive 
                 ? 'border-blue-500 bg-blue-50' 
                 : 'border-gray-300 hover:border-blue-400'
             }`}
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
           >
+            <input {...getInputProps()} />
             <div className="space-y-3">
               <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100">
                 <Upload className="h-6 w-6" />
@@ -210,16 +299,13 @@ const UploadDocuments: React.FC = () => {
               <div className="text-gray-700">
                 <p className="font-medium">Drag and drop your file here, or</p>
                 <div className="mt-2">
-                  <label htmlFor="file-upload" className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer">
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     Browse Files
-                    <input
-                      id="file-upload"
-                      type="file"
-                      className="sr-only"
-                      onChange={handleFileChange}
-                      multiple
-                    />
-                  </label>
+                  </button>
                 </div>
               </div>
               <div className="text-xs text-gray-500">
@@ -266,6 +352,12 @@ const UploadDocuments: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
+                    <button 
+                      onClick={() => handlePreview(doc)}
+                      className="text-xs text-gray-600 hover:text-blue-800 transition-colors"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
                     {doc.status === 'Uploaded' && (
                       <button 
                         onClick={() => verifyDocument(doc.id)}
@@ -284,8 +376,104 @@ const UploadDocuments: React.FC = () => {
                 </div>
               ))}
             </div>
+            
+            {/* Upload Progress */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Upload Progress</h3>
+              <div className="space-y-2">
+                {requiredDocuments.map((doc, index) => {
+                  const isUploaded = documents.some(d => d.type === doc);
+                  const isVerified = documents.some(d => d.type === doc && d.status === 'Verified');
+                  return (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className={`w-5 h-5 flex items-center justify-center rounded-full mr-2 ${
+                          isVerified 
+                            ? 'bg-green-100 text-green-600' 
+                            : isUploaded 
+                            ? 'bg-blue-100 text-blue-600' 
+                            : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {isVerified ? (
+                            <CheckCircle className="w-3 h-3" />
+                          ) : (
+                            <span className="text-xs">{index + 1}</span>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-700">{doc}</span>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                        isVerified 
+                          ? 'bg-green-100 text-green-600' 
+                          : isUploaded 
+                          ? 'bg-blue-100 text-blue-600' 
+                          : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {isVerified ? 'Verified' : isUploaded ? 'Uploaded' : 'Required'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
+        
+        {/* Document Guidelines */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Document Guidelines</h2>
+          <div className="space-y-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                <span className="text-sm font-medium text-blue-700">1</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">File Format</h3>
+                <p className="text-sm text-gray-600">
+                  Upload documents in PDF, JPG, or PNG format. Documents must be clear, complete, and legible.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                <span className="text-sm font-medium text-blue-700">2</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">File Size</h3>
+                <p className="text-sm text-gray-600">
+                  Each file must be under 10MB. If a document exceeds this limit, try scanning at a lower resolution.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                <span className="text-sm font-medium text-blue-700">3</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Death Certificates</h3>
+                <p className="text-sm text-gray-600">
+                  For life insurance claims, please provide a certified copy of the death certificate issued by the vital records office.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                <span className="text-sm font-medium text-blue-700">4</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Processing Time</h3>
+                <p className="text-sm text-gray-600">
+                  {claimData && claimTypesData.find(type => type.id === claimData.policyType)?.processingTime
+                    ? `Typical processing time for ${claimData.claimType} claims is ${claimTypesData.find(type => type.id === claimData.policyType)?.processingTime}.`
+                    : 'Processing times vary by claim type. Complete submissions are processed faster.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
         
         {/* Continue Button */}
         <div className="flex justify-between items-center">
@@ -310,6 +498,75 @@ const UploadDocuments: React.FC = () => {
           </button>
         </div>
       </div>
+      
+      {/* Document Preview Modal */}
+      {previewDocument && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-gray-500 bg-opacity-75 flex items-center justify-center">
+          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">{previewDocument.name}</h3>
+              <button
+                onClick={closePreview}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              {previewDocument.fileUrl ? (
+                previewDocument.name.toLowerCase().endsWith('.pdf') ? (
+                  <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                    <iframe 
+                      src={previewDocument.fileUrl}
+                      className="w-full h-[70vh]"
+                      title={previewDocument.name}
+                    ></iframe>
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg p-4">
+                    <img 
+                      src={previewDocument.fileUrl}
+                      alt={previewDocument.name}
+                      className="max-w-full max-h-[70vh] object-contain"
+                    />
+                  </div>
+                )
+              ) : (
+                <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                  <p>Preview not available</p>
+                </div>
+              )}
+            </div>
+            <div className="px-4 py-3 border-t border-gray-200">
+              <div className="flex justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Type: {previewDocument.type}</p>
+                  <p className="text-sm text-gray-600">Size: {(previewDocument.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+                <div className="flex space-x-3">
+                  {previewDocument.status !== 'Verified' && (
+                    <button
+                      onClick={() => {
+                        verifyDocument(previewDocument.id);
+                        closePreview();
+                      }}
+                      className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700"
+                    >
+                      Verify Document
+                    </button>
+                  )}
+                  <button
+                    onClick={closePreview}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-800 text-sm font-medium rounded hover:bg-gray-300"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

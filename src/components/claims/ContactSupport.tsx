@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { Phone, Mail, MessageSquare, Clock, ArrowRight, Clock8, FileText, AlertTriangle } from 'lucide-react';
+import { Phone, Mail, MessageSquare, Clock, ArrowRight, Clock8, FileText, AlertTriangle, HelpCircle, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import faqAnswers from '../../data/faq_answers.json';
 
 const ContactSupport: React.FC = () => {
   const { claimData, activeTab, addMessageToChat } = useAppContext();
@@ -10,6 +11,9 @@ const ContactSupport: React.FC = () => {
   const [callbackSelected, setCallbackSelected] = useState(false);
   const [callbackPhone, setCallbackPhone] = useState('');
   const [callbackRequested, setCallbackRequested] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [filteredFaqs, setFilteredFaqs] = useState(faqAnswers);
   
   useEffect(() => {
     // Check current time to set availability (in real app this would be based on business hours)
@@ -33,6 +37,23 @@ const ContactSupport: React.FC = () => {
       });
     }, 500);
   }, [addMessageToChat]);
+  
+  // Filter FAQs when search query changes
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredFaqs(faqAnswers);
+      return;
+    }
+    
+    const lowerCaseQuery = searchQuery.toLowerCase();
+    const filtered = faqAnswers.filter(faq => 
+      faq.question.toLowerCase().includes(lowerCaseQuery) ||
+      faq.answer.toLowerCase().includes(lowerCaseQuery)
+    );
+    
+    setFilteredFaqs(filtered);
+    setExpandedFaq(null);
+  }, [searchQuery]);
   
   const handleContactMethodSelect = (method: 'phone' | 'email' | 'chat') => {
     setContactMethod(method);
@@ -89,6 +110,28 @@ const ContactSupport: React.FC = () => {
     }, 1000);
   };
   
+  const handleFaqClick = (index: number) => {
+    setExpandedFaq(expandedFaq === index ? null : index);
+    
+    // If this is the first time clicking on an FAQ, simulate user question and agent response
+    if (expandedFaq !== index) {
+      const faq = filteredFaqs[index];
+      
+      addMessageToChat({
+        sender: 'user',
+        content: faq.question
+      });
+      
+      setTimeout(() => {
+        addMessageToChat({
+          sender: 'agent',
+          content: faq.answer,
+          agentType: 'escalation-assistant'
+        });
+      }, 1000);
+    }
+  };
+  
   // Check if component should display based on active tab
   if (activeTab !== 'contact') return null;
   
@@ -121,6 +164,57 @@ const ContactSupport: React.FC = () => {
           <p className="text-gray-600">
             Get assistance with your claim from our dedicated support team.
           </p>
+        </div>
+        
+        {/* FAQ Section - Added at the top for easy access */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Frequently Asked Questions</h2>
+          
+          <div className="mb-4 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search frequently asked questions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            {filteredFaqs.map((faq, index) => (
+              <div 
+                key={index} 
+                className="border border-gray-200 rounded-lg overflow-hidden"
+              >
+                <div 
+                  className="bg-gray-50 px-4 py-3 flex justify-between items-center cursor-pointer"
+                  onClick={() => handleFaqClick(index)}
+                >
+                  <h3 className="font-medium text-gray-900">{faq.question}</h3>
+                  <div className="text-gray-500">
+                    {expandedFaq === index ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </div>
+                </div>
+                
+                {expandedFaq === index && (
+                  <div className="p-4 bg-white">
+                    <p className="text-gray-700">{faq.answer}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {filteredFaqs.length === 0 && (
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <HelpCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-700">No matching questions found</p>
+                <p className="text-sm text-gray-500 mt-1">Try a different search term or contact us directly</p>
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="bg-blue-50 rounded-lg p-4 mb-6 flex items-start">
@@ -279,6 +373,22 @@ const ContactSupport: React.FC = () => {
                 </select>
               </div>
               
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason for Callback
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  defaultValue="status"
+                >
+                  <option value="status">Check Claim Status</option>
+                  <option value="documents">Question About Required Documents</option>
+                  <option value="payment">Payment Questions</option>
+                  <option value="escalation">Escalate an Issue</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
               <div className="flex justify-between pt-4">
                 <button
                   onClick={() => setCallbackSelected(false)}
@@ -305,7 +415,7 @@ const ContactSupport: React.FC = () => {
         {callbackRequested && (
           <div className="bg-green-50 rounded-lg p-6 mb-6 text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <Check className="h-6 w-6 text-green-600" />
+              <CheckCircle className="h-6 w-6 text-green-600" />
             </div>
             <h3 className="text-lg font-medium text-green-800 mb-2">Callback Requested</h3>
             <p className="text-green-700 mb-4">

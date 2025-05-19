@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
-import { User, ClaimData, ClaimType, ClaimStatus, ChatThread, Message } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { User, ClaimData, ClaimType, ClaimStatus, ChatThread, Message, Document, DocumentType } from '../types';
+import claimTypesData from '../data/claim_types.json';
 
 interface AppContextType {
   user: User;
@@ -17,6 +18,8 @@ interface AppContextType {
   setUploadedDocuments: (docs: string[]) => void;
   claimStatus: ClaimStatus;
   setClaimStatus: (status: ClaimStatus) => void;
+  documents: Document[];
+  setDocuments: (docs: Document[]) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -27,17 +30,56 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [claimData, setClaimData] = useState<ClaimData | null>(null);
   const [uploadedDocuments, setUploadedDocuments] = useState<string[]>([]);
   const [claimStatus, setClaimStatus] = useState<ClaimStatus>('Not Started');
-  const [claimTypes] = useState<ClaimType[]>([
-    { id: 'annuity', name: 'Annuity Claim', description: 'File a claim on an annuity contract' },
-    { id: 'life', name: 'Life Insurance Claim', description: 'Submit a death benefit claim' },
-    { id: 'ltc', name: 'Long-Term Care Claim', description: 'Claim for long-term care benefits' },
-    { id: 'disability', name: 'Disability Income Claim', description: 'Claim for disability benefits' }
-  ]);
+  const [claimTypes] = useState<ClaimType[]>(claimTypesData);
   const [chatThread, setChatThread] = useState<ChatThread>({
     id: 'main-chat-thread',
     messages: [],
   });
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [showWelcomeModal, setShowWelcomeModal] = useState(true);
+
+  // Monitor tab changes for a more cohesive workflow
+  useEffect(() => {
+    // Add contextual guidance when user navigates between tabs
+    if (claimData) {
+      switch(activeTab) {
+        case 'upload':
+          // Only show this guidance if we have claim data but no documents yet
+          if (uploadedDocuments.length === 0) {
+            setTimeout(() => {
+              addMessageToChat({
+                sender: 'agent',
+                content: `Now that you've started your ${claimData.claimType} claim, please upload the required documents. Make sure each document is clear and complete.`,
+                agentType: 'document-assistant'
+              });
+            }, 500);
+          }
+          break;
+        case 'fill':
+          if (uploadedDocuments.length > 0 && claimStatus === 'Not Started') {
+            setTimeout(() => {
+              addMessageToChat({
+                sender: 'agent',
+                content: `Thank you for uploading your documents. Now, let's complete the claim form. I'll guide you through each section.`,
+                agentType: 'form-assistant'
+              });
+            }, 500);
+          }
+          break;
+        case 'track':
+          if (claimStatus !== 'Not Started') {
+            setTimeout(() => {
+              addMessageToChat({
+                sender: 'agent',
+                content: `You can track the progress of your claim here. The current status is "${claimStatus}". I'll notify you of any status changes or if additional information is needed.`,
+                agentType: 'status-assistant'
+              });
+            }, 500);
+          }
+          break;
+      }
+    }
+  }, [activeTab, claimData, uploadedDocuments, claimStatus]);
 
   const addMessageToChat = useCallback((message: Omit<Message, 'id' | 'timestamp'>) => {
     const newMessage = {
@@ -70,13 +112,35 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             responseContent = "I've reviewed the information you've provided. Please confirm the pre-filled details on the form and complete any missing fields to proceed with your claim submission.";
             break;
           case 'track':
-            responseContent = "Your claim is currently being processed. You can check the status in real-time on this page. If you have any questions about the process, feel free to ask.";
+            responseContent = `Your claim is currently ${claimStatus}. You can check the status in real-time on this page. If you have any questions about the process, feel free to ask.`;
             break;
           case 'contact':
             responseContent = "If you need immediate assistance, you can contact our claims team directly. Would you prefer to speak with someone by phone, email, or live chat?";
             break;
           default:
             responseContent = "Thank you for your message. How else can I assist you with your Allianz claim today?";
+        }
+        
+        // Try to detect if the message is a question and provide more relevant responses
+        const userMessage = message.content.toLowerCase();
+        if (userMessage.includes('how long') || userMessage.includes('time') || userMessage.includes('when')) {
+          if (activeTab === 'track') {
+            responseContent = `The processing time for a ${claimData?.claimType || 'claim'} is typically ${
+              claimData?.policyType === 'life' ? '7-10' : 
+              claimData?.policyType === 'ltc' ? '10-14' : 
+              claimData?.policyType === 'annuity' ? '5-7' : '7-10'
+            } business days. Your claim is currently ${claimStatus}, and we'll notify you of any updates.`;
+          } else {
+            responseContent = `Processing times vary by claim type. For a ${claimData?.claimType || 'claim'}, it typically takes ${
+              claimData?.policyType === 'life' ? '7-10' : 
+              claimData?.policyType === 'ltc' ? '10-14' : 
+              claimData?.policyType === 'annuity' ? '5-7' : '7-10'
+            } business days after we receive all required documentation.`;
+          }
+        } else if (userMessage.includes('document') || userMessage.includes('upload')) {
+          responseContent = "Required documents depend on your claim type. For life insurance claims, you'll need a death certificate, completed claim form, and proof of identity. For annuity claims, you'll need a completed claim form and proof of identity. You can upload these in the 'Upload Documents' tab.";
+        } else if (userMessage.includes('payment') || userMessage.includes('money')) {
+          responseContent = "Once your claim is approved, you'll receive payment via your chosen method (direct deposit or check). Direct deposit is faster, typically processing within 1-3 business days after claim approval.";
         }
         
         const agentResponse = {
@@ -93,7 +157,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }));
       }, 1500);
     }
-  }, [activeTab]);
+  }, [activeTab, claimData, claimStatus]);
 
   const resetChat = useCallback(() => {
     setChatThread({
@@ -127,7 +191,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         uploadedDocuments,
         setUploadedDocuments,
         claimStatus,
-        setClaimStatus
+        setClaimStatus,
+        documents,
+        setDocuments
       }}
     >
       {children}
