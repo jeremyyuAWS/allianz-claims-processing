@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { X, BrainCircuit, Calculator, LineChart, Edit, Database } from 'lucide-react';
+import { X, MessageSquare, Upload, FileText, Clock, Phone } from 'lucide-react';
 
 const WelcomeModal: React.FC = () => {
   const { showWelcomeModal, setShowWelcomeModal } = useAppContext();
@@ -27,57 +27,57 @@ const WelcomeModal: React.FC = () => {
             <div className="sm:flex sm:items-start">
               <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                 <h3 className="text-2xl leading-6 font-bold text-gray-900 mb-4" id="modal-title">
-                  Welcome to RetireWise
+                  Welcome to Allianz Claims Processing
                 </h3>
                 <div className="mt-2">
                   <p className="text-sm text-gray-500 mb-4">
-                    This application is powered by AI agents from the Lyzr platform. Each agent helps you navigate retirement planning more intelligently. Here's how it works:
+                    This application guides you through the claims process with AI-powered assistance. Here's how it works:
                   </p>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="flex items-center mb-2">
-                        <BrainCircuit className="h-5 w-5 text-blue-500 mr-2" />
-                        <h4 className="font-medium text-blue-800">Questionnaire Agent</h4>
+                        <MessageSquare className="h-5 w-5 text-blue-500 mr-2" />
+                        <h4 className="font-medium text-blue-800">Start a Claim</h4>
                       </div>
-                      <p className="text-sm text-gray-600">Guides you through retirement planning questions to gather your information and preferences.</p>
+                      <p className="text-sm text-gray-600">Begin by selecting the type of policy you're filing a claim against, and our assistant will guide you through the process.</p>
                     </div>
                     
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="flex items-center mb-2">
-                        <Calculator className="h-5 w-5 text-blue-500 mr-2" />
-                        <h4 className="font-medium text-blue-800">Portfolio Recommender</h4>
+                        <Upload className="h-5 w-5 text-blue-500 mr-2" />
+                        <h4 className="font-medium text-blue-800">Upload Documents</h4>
                       </div>
-                      <p className="text-sm text-gray-600">Analyzes your inputs and generates three personalized portfolio options based on your risk profile.</p>
+                      <p className="text-sm text-gray-600">Securely upload required documentation such as death certificates, claim forms, or medical records.</p>
                     </div>
                     
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="flex items-center mb-2">
-                        <LineChart className="h-5 w-5 text-blue-500 mr-2" />
-                        <h4 className="font-medium text-blue-800">Plan Explainer</h4>
+                        <FileText className="h-5 w-5 text-blue-500 mr-2" />
+                        <h4 className="font-medium text-blue-800">Fill Claim Form</h4>
                       </div>
-                      <p className="text-sm text-gray-600">Answers your questions about each portfolio option and explains projections and assumptions.</p>
+                      <p className="text-sm text-gray-600">Our AI assistant helps you complete the necessary claim forms with pre-filled information whenever possible.</p>
                     </div>
                     
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <div className="flex items-center mb-2">
-                        <Edit className="h-5 w-5 text-blue-500 mr-2" />
-                        <h4 className="font-medium text-blue-800">Plan Editor</h4>
+                        <Clock className="h-5 w-5 text-blue-500 mr-2" />
+                        <h4 className="font-medium text-blue-800">Track Status</h4>
                       </div>
-                      <p className="text-sm text-gray-600">Allows financial advisors to customize portfolios through natural language instructions.</p>
+                      <p className="text-sm text-gray-600">Monitor your claim's progress through each stage of the review and approval process.</p>
                     </div>
                   </div>
 
                   <div className="bg-yellow-50 p-4 rounded-lg mb-4">
                     <div className="flex items-center mb-2">
-                      <Database className="h-5 w-5 text-yellow-500 mr-2" />
-                      <h4 className="font-medium text-yellow-800">Simulated Mode</h4>
+                      <Phone className="h-5 w-5 text-yellow-500 mr-2" />
+                      <h4 className="font-medium text-yellow-800">Demo Mode</h4>
                     </div>
-                    <p className="text-sm text-gray-600">This demo uses simulated data and AI responses. In a production environment, these would be powered by real-time Lyzr AI agents.</p>
+                    <p className="text-sm text-gray-600">This is a demonstration application using simulated data. In a production environment, your actual policy information would be displayed and processed securely.</p>
                   </div>
                   
                   <p className="text-sm text-gray-500 mt-4">
-                    <span className="font-medium">To get started:</span> Toggle between Customer and Advisor modes in the top menu. As a customer, answer the questionnaire to get portfolio recommendations. As an advisor, you can customize portfolios using the chat interface.
+                    <span className="font-medium">To get started:</span> Follow the tabs from left to right, beginning with "Start a Claim". Each tab represents a step in the claims process, and you can use the AI assistant at any point by clicking the chat button.
                   </p>
                 </div>
               </div>

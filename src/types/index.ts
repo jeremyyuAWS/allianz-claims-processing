@@ -1,50 +1,50 @@
-export type Mode = 'customer' | 'advisor';
-
-export interface User {
+export type User = {
   name: string;
-  sessionId: string;
-}
+  policyNumber: string;
+};
 
-export interface RetirementData {
-  age: number;
-  retirementAge: number;
-  currentSavings: number;
-  annualIncome: number;
-  riskTolerance: 'Low' | 'Medium' | 'High';
-  desiredLifestyle: string;
-}
-
-export interface Portfolio {
-  type: 'Aggressive' | 'Balanced' | 'Safe';
-  projectedFund: number;
-  annualWithdrawal: number;
-  cagr: number;
-  allocation: {
-    stocks: number;
-    bonds: number;
-    reits: number;
-    international: number;
-    alternatives: number;
-    cash: number;
-  };
+export type ClaimType = {
+  id: string;
+  name: string;
   description: string;
-  riskLevel: 'High' | 'Medium' | 'Low';
-  colorScheme: {
-    primary: string;
-    secondary: string;
-    accent: string;
-  };
-}
+};
+
+export type ClaimData = {
+  policyNumber: string;
+  policyHolder: string;
+  policyType: string;
+  claimType: string;
+  claimReason: string;
+  dateOfIncident?: Date;
+  beneficiaryName?: string;
+  beneficiaryRelation?: string;
+  beneficiaryContact?: string;
+  additionalInfo?: string;
+};
+
+export type ClaimStatus = 'Not Started' | 'Documents Pending' | 'In Review' | 'Additional Info Required' | 'Approved' | 'Paid' | 'Denied';
 
 export interface Message {
   id: string;
   sender: 'user' | 'agent';
   content: string;
   timestamp: Date;
-  agentType?: 'questionnaire' | 'recommender' | 'explainer' | 'editor';
+  agentType?: 'claims-assistant' | 'document-assistant' | 'form-assistant' | 'status-assistant' | 'escalation-assistant';
 }
 
 export interface ChatThread {
   id: string;
   messages: Message[];
+}
+
+export type DocumentType = 'Death Certificate' | 'Claim Form' | 'ID Proof' | 'Medical Records' | 'Power of Attorney' | 'Other';
+
+export interface Document {
+  id: string;
+  name: string;
+  type: DocumentType;
+  uploadDate: Date;
+  size: number;
+  status: 'Uploaded' | 'Verified' | 'Rejected';
+  fileUrl?: string;
 }

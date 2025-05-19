@@ -1,0 +1,34 @@
+[
+  {
+    "question": "How long does it take to process a claim?",
+    "answer": "Processing times vary by claim type. Life insurance claims typically take 7-10 business days, annuity claims 5-7 business days, and long-term care claims 10-14 business days after we receive all required documentation."
+  },
+  {
+    "question": "What documents do I need to submit?",
+    "answer": "Required documents depend on your claim type. For life insurance claims, you'll need a death certificate, completed claim form, and proof of identity. For annuity claims, you'll need a completed claim form and proof of identity. Use our document uploader to see the specific requirements for your claim."
+  },
+  {
+    "question": "How will I receive my payment?",
+    "answer": "You can choose to receive your payment via direct deposit or check. Direct deposit is faster and more secure, typically processing within 1-3 business days after claim approval. Checks may take 7-10 business days to arrive by mail."
+  },
+  {
+    "question": "Can I check the status of my claim online?",
+    "answer": "Yes, you can track the status of your claim through the 'Track Claim Status' tab in this portal. The system provides real-time updates as your claim moves through our process."
+  },
+  {
+    "question": "What if my claim is denied?",
+    "answer": "If your claim is denied, you will receive a detailed explanation of the reason. You have the right to appeal the decision within 60 days of the denial notice. Contact our claims department for assistance with the appeals process."
+  },
+  {
+    "question": "Do I need to submit original documents?",
+    "answer": "For most claims, scanned copies or clear photos of documents are acceptable. However, we may request original documents in certain situations. Death certificates should be certified copies."
+  },
+  {
+    "question": "How do I contact a claims representative?",
+    "answer": "You can contact our claims representatives through the 'Contact a Claims Agent' section of this portal. Options include phone (1-800-555-7890), email (claims@allianz-example.com), or live chat during business hours."
+  },
+  {
+    "question": "Can someone else file a claim on my behalf?",
+    "answer": "Yes, an authorized representative can file a claim on your behalf. They will need to provide a Power of Attorney or other legal documentation showing their authority to act for you."
+  }
+]

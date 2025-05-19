@@ -1,0 +1,30 @@
+[
+  {
+    "id": "annuity",
+    "name": "Annuity Claim",
+    "description": "File a claim on an annuity contract",
+    "requiredDocuments": ["Claim Form", "ID Proof", "Death Certificate (if applicable)"],
+    "processingTime": "5-7 business days"
+  },
+  {
+    "id": "life",
+    "name": "Life Insurance Claim",
+    "description": "Submit a death benefit claim",
+    "requiredDocuments": ["Death Certificate", "Claim Form", "ID Proof", "Beneficiary Information"],
+    "processingTime": "7-10 business days"
+  },
+  {
+    "id": "ltc",
+    "name": "Long-Term Care Claim",
+    "description": "Claim for long-term care benefits",
+    "requiredDocuments": ["Medical Records", "Claim Form", "ID Proof", "Facility Information"],
+    "processingTime": "10-14 business days"
+  },
+  {
+    "id": "disability",
+    "name": "Disability Income Claim",
+    "description": "Claim for disability benefits",
+    "requiredDocuments": ["Medical Records", "Claim Form", "ID Proof", "Employer Statement"],
+    "processingTime": "7-14 business days"
+  }
+]

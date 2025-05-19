@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAppContext } from '../../context/AppContext';
-import ModeToggle from './ModeToggle';
-import { User } from 'lucide-react';
+import { User, Phone, MessageSquare, HelpCircle } from 'lucide-react';
 
 const Header: React.FC = () => {
   const { user } = useAppContext();
@@ -21,17 +20,30 @@ const Header: React.FC = () => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M12 2v6.5M12 22v-6.5M4.93 5.93l4.6 4.6M14.36 13.36l4.6 4.6M2 12h6.5M22 12h-6.5M5.93 19.07l4.6-4.6M13.36 4.93l4.6 4.6" />
+                <path d="M20 7h-9m9 10h-9m9-5h-9m-3 10a5 5 0 1 1 0-10 5 5 0 0 1 0 10Z"></path>
               </svg>
-              <span className="ml-2 text-xl font-semibold text-gray-900">RetireWise</span>
+              <span className="ml-2 text-xl font-semibold text-gray-900">Allianz Claims</span>
             </div>
           </div>
           <div className="flex items-center">
-            <ModeToggle />
+            <div className="flex items-center space-x-4">
+              <a href="#" className="flex items-center text-sm text-gray-600 hover:text-blue-600">
+                <HelpCircle className="h-4 w-4 mr-1" />
+                <span>Help</span>
+              </a>
+              <a href="#" className="flex items-center text-sm text-gray-600 hover:text-blue-600">
+                <Phone className="h-4 w-4 mr-1" />
+                <span>1-800-555-7890</span>
+              </a>
+              <a href="#" className="flex items-center text-sm text-gray-600 hover:text-blue-600">
+                <MessageSquare className="h-4 w-4 mr-1" />
+                <span>Live Chat</span>
+              </a>
+            </div>
             <div className="ml-4 flex items-center">
               <div className="mr-3 text-right hidden sm:block">
                 <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                <p className="text-xs text-gray-500">Session: {user.sessionId}</p>
+                <p className="text-xs text-gray-500">Policy #: {user.policyNumber}</p>
               </div>
               <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                 <User className="h-5 w-5 text-gray-500" />
