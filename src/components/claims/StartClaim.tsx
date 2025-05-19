@@ -136,7 +136,7 @@ const StartClaim: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center">
-              <span className="text-sm text-gray-600 mr-2">Use Enhanced UI</span>
+              <span className="text-sm text-gray-600 mr-2">Demo mode</span>
               <button 
                 onClick={toggleDemoMode}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${demoMode ? 'bg-blue-600' : 'bg-gray-200'}`}
