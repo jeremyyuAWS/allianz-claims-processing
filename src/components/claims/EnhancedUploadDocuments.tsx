@@ -290,14 +290,14 @@ const EnhancedUploadDocuments: React.FC = () => {
   };
   
   const handleContinue = () => {
-    // Check if all required documents are uploaded
+    // Check if all required documents are uploaded or if in demo mode
     const uploadedTypes = documents.map(doc => doc.type);
     const uniqueUploadedTypes = [...new Set(uploadedTypes)];
     const allRequiredUploaded = requiredDocuments.every(type => 
       uniqueUploadedTypes.includes(type as DocumentType)
     );
     
-    if (allRequiredUploaded) {
+    if (allRequiredUploaded || demoMode) {
       // Notify the user and proceed
       addMessageToChat({
         sender: 'agent',
@@ -306,7 +306,7 @@ const EnhancedUploadDocuments: React.FC = () => {
       });
       
       // Show success toast
-      setToastMessage("All documents uploaded successfully");
+      setToastMessage("Proceeding to claim form");
       setToastType('success');
       setShowToast(true);
       
@@ -983,13 +983,13 @@ const EnhancedUploadDocuments: React.FC = () => {
           <button
             onClick={handleContinue}
             className={`flex items-center px-4 py-2 rounded-md shadow-sm text-white transition-colors ${
-              allRequiredUploaded
+              allRequiredUploaded || demoMode
                 ? 'bg-blue-600 hover:bg-blue-700'
                 : 'bg-gray-300 cursor-not-allowed'
             }`}
-            disabled={!allRequiredUploaded}
+            disabled={!allRequiredUploaded && !demoMode}
           >
-            <span>{allRequiredUploaded ? "Continue to Claim Form" : "Upload Required Documents"}</span>
+            <span>{allRequiredUploaded || demoMode ? "Continue to Claim Form" : "Upload Required Documents"}</span>
             <ArrowRight className="ml-2 h-4 w-4" />
           </button>
         </div>
