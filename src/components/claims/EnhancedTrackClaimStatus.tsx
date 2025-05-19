@@ -18,7 +18,8 @@ import {
   Clipboard,
   Download,
   Bell,
-  Mail
+  Mail,
+  DollarSign
 } from 'lucide-react';
 import EmailTemplate from '../common/EmailTemplate';
 import Toast from '../common/Toast';
