@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useAppContext } from '../../context/AppContext';
-import { Upload, File, CheckCircle, AlertTriangle, Info, XCircle, ArrowRight, Eye } from 'lucide-react';
+import { Upload, File, CheckCircle, AlertTriangle, Info, XCircle, ArrowRight, Eye, FileText, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Document, DocumentType } from '../../types';
 import claimTypesData from '../../data/claim_types.json';
 
@@ -12,6 +12,7 @@ const UploadDocuments: React.FC = () => {
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Claim Form');
   const [requiredDocuments, setRequiredDocuments] = useState<string[]>([]);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
+  const [demoMode, setDemoMode] = useState(false);
   
   useEffect(() => {
     // Determine required documents based on claim type
@@ -202,6 +203,102 @@ const UploadDocuments: React.FC = () => {
     }
   };
   
+  // Demo mode handlers
+  const toggleDemoMode = () => {
+    setDemoMode(!demoMode);
+    
+    // Add message to chat about demo mode
+    if (!demoMode) {
+      addMessageToChat({
+        sender: 'agent',
+        content: "Demo mode activated. You can now use sample documents without having to upload actual files.",
+        agentType: 'document-assistant'
+      });
+    }
+  };
+  
+  // Sample documents for demo mode
+  const demoDocuments = {
+    'Death Certificate': [
+      { name: 'Death_Certificate_Smith_John.pdf', size: 1234567 },
+      { name: 'Death_Certificate_Certified_Copy.pdf', size: 2345678 }
+    ],
+    'Claim Form': [
+      { name: 'Allianz_Claim_Form_Completed.pdf', size: 987654 },
+      { name: 'Policy_Claim_Form.pdf', size: 876543 }
+    ],
+    'ID Proof': [
+      { name: 'Drivers_License.jpg', size: 345678 },
+      { name: 'Passport_ID_Page.jpg', size: 456789 }
+    ],
+    'Medical Records': [
+      { name: 'Medical_History_Summary.pdf', size: 3456789 },
+      { name: 'Hospital_Records.pdf', size: 4567890 }
+    ],
+    'Power of Attorney': [
+      { name: 'Power_of_Attorney_Document.pdf', size: 2345678 },
+      { name: 'Notarized_POA.pdf', size: 3456789 }
+    ],
+    'Other': [
+      { name: 'Supporting_Documentation.pdf', size: 1234567 },
+      { name: 'Additional_Information.pdf', size: 2345678 }
+    ]
+  };
+  
+  const addDemoDocument = (fileIndex: number = 0) => {
+    const docType = selectedDocType;
+    const availableDocs = demoDocuments[docType as keyof typeof demoDocuments] || demoDocuments['Other'];
+    const demoDoc = availableDocs[fileIndex % availableDocs.length];
+    
+    const newDocument: Document = {
+      id: `demo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      name: demoDoc.name,
+      type: docType,
+      uploadDate: new Date(),
+      size: demoDoc.size,
+      status: 'Uploaded',
+      // We can't provide a real fileUrl since we don't have actual files in demo mode
+      fileUrl: `https://via.placeholder.com/800x1000?text=Demo+${docType.replace(/\s+/g, '+')}`
+    };
+    
+    setDocuments(prev => [...prev, newDocument]);
+    setUploadedDocuments(prev => [...prev, demoDoc.name]);
+    
+    // Simulate user message
+    addMessageToChat({
+      sender: 'user',
+      content: `I've uploaded a ${docType}`
+    });
+    
+    // Simulate agent response
+    setTimeout(() => {
+      const uploadResponse = getUploadResponse(docType, 1);
+      
+      addMessageToChat({
+        sender: 'agent',
+        content: uploadResponse,
+        agentType: 'document-assistant'
+      });
+      
+      // Check if all required docs are uploaded and provide guidance
+      const uploadedTypes = [...documents, newDocument].map(d => d.type);
+      const uniqueUploadedTypes = [...new Set(uploadedTypes)];
+      const allRequiredUploaded = requiredDocuments.every(doc => 
+        uniqueUploadedTypes.includes(doc as DocumentType)
+      );
+      
+      if (allRequiredUploaded) {
+        setTimeout(() => {
+          addMessageToChat({
+            sender: 'agent',
+            content: "Great job! You've uploaded all the required documents. You can proceed to fill out the claim form when you're ready.",
+            agentType: 'document-assistant'
+          });
+        }, 1500);
+      }
+    }, 1000);
+  };
+  
   // Check if component should display based on active tab
   if (activeTab !== 'upload') return null;
   
@@ -234,6 +331,22 @@ const UploadDocuments: React.FC = () => {
           <p className="text-gray-600">
             Please upload the required documentation for your {claimData.claimType.toLowerCase()}.
           </p>
+        </div>
+        
+        {/* Demo Mode Toggle */}
+        <div className="flex items-center justify-end mb-4">
+          <span className="text-sm text-gray-600 mr-2">Demo Mode</span>
+          <button 
+            className="focus:outline-none" 
+            onClick={toggleDemoMode}
+            aria-label={demoMode ? "Disable demo mode" : "Enable demo mode"}
+          >
+            {demoMode ? (
+              <ToggleRight className="h-6 w-6 text-blue-600" />
+            ) : (
+              <ToggleLeft className="h-6 w-6 text-gray-400" />
+            )}
+          </button>
         </div>
         
         <div className="bg-blue-50 rounded-lg p-4 mb-6 flex items-start">
@@ -283,36 +396,65 @@ const UploadDocuments: React.FC = () => {
             </p>
           </div>
           
-          <div 
-            {...getRootProps()} 
-            className={`border-2 border-dashed rounded-lg p-6 text-center ${
-              isDragActive 
-                ? 'border-blue-500 bg-blue-50' 
-                : 'border-gray-300 hover:border-blue-400'
-            }`}
-          >
-            <input {...getInputProps()} />
-            <div className="space-y-3">
-              <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100">
-                <Upload className="h-6 w-6" />
-              </div>
-              <div className="text-gray-700">
-                <p className="font-medium">Drag and drop your file here, or</p>
-                <div className="mt-2">
-                  <button
-                    type="button"
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Browse Files
-                  </button>
+          {demoMode ? (
+            /* Demo Mode Upload Interface */
+            <div className="border-2 border-dashed rounded-lg p-6 text-center bg-blue-50 border-blue-300">
+              <div className="space-y-3">
+                <div className="mx-auto h-12 w-12 text-blue-500 flex items-center justify-center rounded-full bg-blue-100">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <div className="text-gray-700">
+                  <p className="font-medium">Demo Mode: Sample Document Selection</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Select a sample document to demonstrate the upload process without using actual files
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
+                  {demoDocuments[selectedDocType as keyof typeof demoDocuments]?.map((doc, index) => (
+                    <button
+                      key={index}
+                      onClick={() => addDemoDocument(index)}
+                      className="px-4 py-2 bg-white border border-blue-300 rounded-md shadow-sm text-sm font-medium text-blue-700 hover:bg-blue-50 focus:outline-none"
+                    >
+                      {doc.name}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="text-xs text-gray-500">
-                <p>Supported formats: PDF, JPG, PNG (Max size: 10MB)</p>
+            </div>
+          ) : (
+            /* Real Upload Interface */
+            <div 
+              {...getRootProps()} 
+              className={`border-2 border-dashed rounded-lg p-6 text-center ${
+                isDragActive 
+                  ? 'border-blue-500 bg-blue-50' 
+                  : 'border-gray-300 hover:border-blue-400'
+              }`}
+            >
+              <input {...getInputProps()} />
+              <div className="space-y-3">
+                <div className="mx-auto h-12 w-12 text-gray-400 flex items-center justify-center rounded-full bg-gray-100">
+                  <Upload className="h-6 w-6" />
+                </div>
+                <div className="text-gray-700">
+                  <p className="font-medium">Drag and drop your file here, or</p>
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Browse Files
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-500">
+                  <p>Supported formats: PDF, JPG, PNG (Max size: 10MB)</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         
         {/* Uploaded Documents List */}
@@ -442,7 +584,7 @@ const UploadDocuments: React.FC = () => {
               <div>
                 <h3 className="text-sm font-medium text-gray-900">File Size</h3>
                 <p className="text-sm text-gray-600">
-                  Each file must be under 10MB. If a document exceeds this limit, try scanning at a lower resolution.
+                  Each file must be under 10MB in size. If a document exceeds this limit, try scanning at a lower resolution.
                 </p>
               </div>
             </div>
