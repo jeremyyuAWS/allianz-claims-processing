@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { CheckCircle, Clock, AlertCircle, HelpCircle, FileText, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, HelpCircle, FileText, ChevronDown, ChevronUp, AlertTriangle, Upload } from 'lucide-react';
 
 const TrackClaimStatus: React.FC = () => {
   const { claimData, activeTab, setActiveTab, claimStatus, setClaimStatus, addMessageToChat, documents } = useAppContext();
