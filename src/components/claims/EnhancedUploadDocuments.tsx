@@ -18,7 +18,8 @@ import {
   Search,
   RotateCw,
   Clock,
-  AlertCircle
+  AlertCircle,
+  FileCheck
 } from 'lucide-react';
 import { Document, DocumentType } from '../../types';
 import claimTypesData from '../../data/claim_types.json';
