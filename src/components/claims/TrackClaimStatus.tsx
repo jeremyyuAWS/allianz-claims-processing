@@ -147,8 +147,8 @@ const TrackClaimStatus: React.FC = () => {
     }
   };
   
-  const handleStatusSimulation = (newStatus: ClaimStatus) => {
-    setClaimStatus(newStatus);
+  const handleStatusSimulation = (newStatus: string) => {
+    setClaimStatus(newStatus as any);
     
     // Update status history
     setStatusHistory(prev => [
